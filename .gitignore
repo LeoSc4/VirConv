@@ -1,0 +1,11 @@
+data/
+__pycache__/
+
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+#PENet depth completion model file
+tools/PENet/pe.pth.tar
