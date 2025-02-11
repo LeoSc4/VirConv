@@ -2,8 +2,7 @@
 FROM pytorch/pytorch:1.8.1-cuda11.1-cudnn8-devel
 
 WORKDIR /workspace
-
-ARG CACHE_BUST=1
+# RUN chmod -R 777 /workspace
 
 # Request the NVIDIA public key from NVIDIA's package repository to verify the authenticity of the packages
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
@@ -14,11 +13,32 @@ RUN apt-get update && apt-get install -y git
 # Install the cv2 dependencies for the train.py script in tools
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 
-
 # Install Python dependencies 
 COPY requirements.txt /workspace/
 RUN pip install -r requirements.txt --use-feature=2020-resolver
 
 RUN git config --global --add safe.directory /workspace
+
+ARG CACHE_BUST=1
+
+# Setup user to 
+ARG USER=docker
+ARG PASSWORD=docker
+ARG UID=1000  
+ARG GID=1000  
+ENV UID=$UID
+ENV GID=$GID
+ENV USER=$USER
+
+RUN groupadd -g "$GID" "$USER" && \
+    useradd -m -u "$UID" -g "$GID" --shell $(which bash) "$USER" -G sudo && \
+    echo "$USER:$PASSWORD" | chpasswd && \
+    mkdir -p /etc/sudoers.d && \
+    echo "%sudo ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudogrp && \
+    chmod 0440 /etc/sudoers.d/sudogrp && \
+    chown ${UID}:${GID} -R /home/${USER}
+
+USER $USER 
+
 
 CMD ["bash"]

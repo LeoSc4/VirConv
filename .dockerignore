@@ -1,0 +1,10 @@
+# Ignore Git files
+.git
+.gitignore
+.gitmodules
+
+build_docker.sh
+Dockerfile
+README.md
+requirements.txt
+start_docker.sh
