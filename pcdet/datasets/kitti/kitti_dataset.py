@@ -31,15 +31,21 @@ class KittiDataset(DatasetTemplate):
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
 
+
+    # KITTI Infos are loaded during the initialization of the dataset 
     def include_kitti_data(self, mode):
         if self.logger is not None:
             self.logger.info('Loading KITTI dataset')
         kitti_infos = []
 
+        # Load KITTI Infos 
+        # mode can be  'train' or 'test' which determines if code will look at kitti_infos_train.pkl (for training) or kitti_infos_val.pkl (for validation/testing)
         for info_path in self.dataset_cfg.INFO_PATH[mode]:
-            info_path = self.root_path / info_path
+            info_path = self.root_path / info_path # file path construction
             if not info_path.exists():
                 continue
+
+            # Load KITTI Infos from the pickle file (.pkl)
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
                 kitti_infos.extend(infos)
@@ -57,7 +63,7 @@ class KittiDataset(DatasetTemplate):
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
 
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
-        self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
+        self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None       # loads the list of sample IDs from a text file that specifies which samples should be included
 
     def get_lidar(self, idx):
         lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
@@ -129,6 +135,8 @@ class KittiDataset(DatasetTemplate):
             info['image'] = image_info
             calib = self.get_calib(sample_idx)
 
+            # Add the last row [0., 0., 0., 1.] to the P2 matrix
+            # P2 matrix is the 3x4 projection matrix in the rectified camera coordinate system defining the camera projection
             P2 = np.concatenate([calib.P2, np.array([[0., 0., 0., 1.]])], axis=0)
             R0_4x4 = np.zeros([4, 4], dtype=calib.R0.dtype)
             R0_4x4[3, 3] = 1.
@@ -138,10 +146,11 @@ class KittiDataset(DatasetTemplate):
 
             info['calib'] = calib_info
 
+            # Get the label information if it exists
             if has_label:
-                obj_list = self.get_label(sample_idx)
+                obj_list = self.get_label(sample_idx) #get labels for the sample idc
                 annotations = {}
-                annotations['name'] = np.array([obj.cls_type for obj in obj_list])
+                annotations['name'] = np.array([obj.cls_type for obj in obj_list]) # get the class type of each object in the scene
                 annotations['truncated'] = np.array([obj.truncation for obj in obj_list])
                 annotations['occluded'] = np.array([obj.occlusion for obj in obj_list])
                 annotations['alpha'] = np.array([obj.alpha for obj in obj_list])
@@ -157,10 +166,10 @@ class KittiDataset(DatasetTemplate):
                 index = list(range(num_objects)) + [-1] * (num_gt - num_objects)
                 annotations['index'] = np.array(index, dtype=np.int32)
 
-                loc = annotations['location'][:num_objects]
-                dims = annotations['dimensions'][:num_objects]
+                loc = annotations['location'][:num_objects] # get the location of the object
+                dims = annotations['dimensions'][:num_objects] 
                 rots = annotations['rotation_y'][:num_objects]
-                loc_lidar = calib.rect_to_lidar(loc)
+                loc_lidar = calib.rect_to_lidar(loc) #
                 l, h, w = dims[:, 0:1], dims[:, 1:2], dims[:, 2:3]
                 loc_lidar[:, 2] += h[:, 0] / 2
                 gt_boxes_lidar = np.concatenate([loc_lidar, l, w, h, -(np.pi / 2 + rots[..., np.newaxis])], axis=1)
@@ -168,6 +177,7 @@ class KittiDataset(DatasetTemplate):
 
                 info['annos'] = annotations
 
+                # Count the number of points inside the bounding box
                 if count_inside_pts:
                     points = self.get_lidar(sample_idx)
                     calib = self.get_calib(sample_idx)

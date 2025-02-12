@@ -12,9 +12,10 @@ from .kitti.kitti_dataset_mm import KittiDatasetMM
 from prefetch_generator import BackgroundGenerator
 
 
+# Add all datasets here for registering
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
-    'KittiDataset': KittiDataset,
+    'KittiDataset': KittiDataset,         #inspect kitti/kitti_dataset.py
     'KittiDatasetMM': KittiDatasetMM,
     'KittiDatasetSemi': KittiDatasetSemi
 }
@@ -51,19 +52,21 @@ class DistributedSampler(_DistributedSampler):
 def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None, workers=4,
                      logger=None, training=True, merge_all_iters_to_one_epoch=False, total_epochs=0):
 
+    # Create Dataset Instance dynamically from specified dataset in yaml
     dataset = __all__[dataset_cfg.DATASET](
         dataset_cfg=dataset_cfg,
         class_names=class_names,
-        root_path=root_path,
-        training=training,
+        root_path=root_path, #path to dataset
+        training=training, 
         logger=logger,
     )
 
+    # Merge all iterations to one epoch if specified: 
     if merge_all_iters_to_one_epoch:
-        assert hasattr(dataset, 'merge_all_iters_to_one_epoch')
+        assert hasattr(dataset, 'merge_all_iters_to_one_epoch') #ensure dataset has the method before calling
         dataset.merge_all_iters_to_one_epoch(merge=True, epochs=total_epochs)
 
-    if dist:
+    if dist: # if distributed training
         if training:
             sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:
@@ -71,6 +74,8 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
             sampler = DistributedSampler(dataset, world_size, rank, shuffle=False)
     else:
         sampler = None
+    
+    # Load the data from dataset instance 
     dataloader = DataLoaderX(
         dataset, batch_size=batch_size, pin_memory=True, num_workers=workers,
         shuffle=(sampler is None) and training, collate_fn=dataset.collate_batch,
