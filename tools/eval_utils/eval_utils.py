@@ -57,13 +57,13 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         load_data_to_gpu(batch_dict)
         #begin = time.time()
 
-        with torch.no_grad():
-            pred_dicts, ret_dict, batch_dict = model(batch_dict)
+        with torch.no_grad(): #no gradient calculation
+            pred_dicts, ret_dict, batch_dict = model(batch_dict) #forward pass
         disp_dict = {}
         #end = time.time()
         #print(end-begin)
 
-        statistics_info(cfg, ret_dict, metric, disp_dict)
+        statistics_info(cfg, ret_dict, metric, disp_dict) #update statistics
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None
