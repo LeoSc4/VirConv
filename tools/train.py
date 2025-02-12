@@ -45,8 +45,8 @@ def parse_config():
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
-    cfg.TAG = Path(args.cfg_file).stem
-    cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
+    cfg.TAG = Path(args.cfg_file).stem #extracts the filename without the extension (-> Here: the model name)
+    cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml' from the arg in terminal (e.g. cfgs/models/kitti/VirConv-T.yaml)
 
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs, cfg)
@@ -66,7 +66,7 @@ def main():
         dist_train = True
 
     if args.batch_size is None:
-        args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU
+        args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU       #e.g. VirConv-T.yaml: 2kitti_dbinfos_train_mm
     else:
         assert args.batch_size % total_gpus == 0, 'Batch size should match the number of gpus'
         args.batch_size = args.batch_size // total_gpus
@@ -76,11 +76,14 @@ def main():
     if args.fix_random_seed:
         common_utils.set_random_seed(666)
 
+    # -----------------------create output folder with data from args---------------------------
     output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
+
     ckpt_dir = output_dir / 'ckpt'
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
+    # set up logger and store log file in the output directory
     log_file = output_dir / ('log_train_%s.txt' % datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
     logger = common_utils.create_logger(log_file, rank=cfg.LOCAL_RANK)
 
@@ -89,19 +92,21 @@ def main():
     gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
     logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
 
-    if dist_train:
+    if dist_train: #if multiple GPUs are used for training and batch size is split among them
         logger.info('total_batch_size: %d' % (total_gpus * args.batch_size))
-    for key, val in vars(args).items():
-        logger.info('{:16} {}'.format(key, val))
-    log_config_to_file(cfg, logger=logger)
-    if cfg.LOCAL_RANK == 0:
+    for key, val in vars(args).items(): #vars() returns the __dict__ attribute of the given object
+        logger.info('{:16} {}'.format(key, val)) #log all arguments from the terminal
+    log_config_to_file(cfg, logger=logger) #write the complete config to the log file
+    if cfg.LOCAL_RANK == 0: 
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
 
     # -----------------------create dataloader & network & optimizer---------------------------
+
+    ### Dataset information are read from the cfg file of the model (e.g. VirConv-T.yaml)
     train_set, train_loader, train_sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
+        dataset_cfg=cfg.DATA_CONFIG, 
         class_names=cfg.CLASS_NAMES,
         batch_size=args.batch_size,
         dist=dist_train, workers=args.workers,
@@ -136,11 +141,13 @@ def main():
             )
             last_epoch = start_epoch + 1
 
+    # Training
     model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
     if dist_train:
         model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])#,find_unused_parameters=True
-    logger.info(model)
+    logger.info(model) #log the model architecture
 
+    # Build Learning Rate scheduler to define the learning rate decay
     lr_scheduler, lr_warmup_scheduler = build_scheduler(
         optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
@@ -171,6 +178,8 @@ def main():
 
     logger.info('**********************End training %s/%s(%s)**********************\n\n\n'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
+
 
     logger.info('**********************Start evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
