@@ -6,5 +6,4 @@
 build_docker.sh
 Dockerfile
 README.md
-requirements.txt
 start_docker.sh

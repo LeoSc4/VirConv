@@ -21,24 +21,4 @@ RUN git config --global --add safe.directory /workspace
 
 ARG CACHE_BUST=1
 
-# Setup user to 
-ARG USER=docker
-ARG PASSWORD=docker
-ARG UID=1000  
-ARG GID=1000  
-ENV UID=$UID
-ENV GID=$GID
-ENV USER=$USER
-
-RUN groupadd -g "$GID" "$USER" && \
-    useradd -m -u "$UID" -g "$GID" --shell $(which bash) "$USER" -G sudo && \
-    echo "$USER:$PASSWORD" | chpasswd && \
-    mkdir -p /etc/sudoers.d && \
-    echo "%sudo ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/sudogrp && \
-    chmod 0440 /etc/sudoers.d/sudogrp && \
-    chown ${UID}:${GID} -R /home/${USER}
-
-USER $USER 
-
-
 CMD ["bash"]

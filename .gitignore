@@ -4,3 +4,6 @@ build/
 
 pcdet/
 pcdet.egg-info/
+
+__pycache__/
+tools/results/

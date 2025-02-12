@@ -23,6 +23,7 @@ run_docker() {
         echo -e "${YELLOW}Running docker...${NC}"
         xhost +local:root
         docker run \
+            --runtime nvidia \
             --name virconv-pytorch \
             -it \
             --net host \
