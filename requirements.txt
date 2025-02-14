@@ -20,7 +20,7 @@ open3d
 pandas
 future
 pybind11
-tensorboardX
+tensorboardX==2.4
 tensorboard
 Cython
 prefetch-generator
