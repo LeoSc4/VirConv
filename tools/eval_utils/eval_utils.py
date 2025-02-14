@@ -21,6 +21,7 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
 
+# Called by tools/test.py
 def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=True, result_dir=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
@@ -81,14 +82,19 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         det_annos = common_utils.merge_results_dist(det_annos, len(dataset), tmpdir=result_dir / 'tmpdir')
         metric = common_utils.merge_results_dist([metric], world_size, tmpdir=result_dir / 'tmpdir')
 
+
+    ## Generates logging of the Evaluation 
+
     logger.info('*************** Performance of EPOCH %s *****************' % epoch_id)
     sec_per_example = (time.time() - start_time) / len(dataloader.dataset)
     logger.info('Generate label finished(sec_per_example: %.4f second).' % sec_per_example)
 
+    # Code shall only be performed on first GPU
     if cfg.LOCAL_RANK != 0:
         return {}
-
+    
     ret_dict = {}
+    # Aggregate the results from all GPUs
     if dist_test:
         for key, val in metric[0].items():
             for k in range(1, world_size):
@@ -96,6 +102,12 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         metric = metric[0]
 
     gt_num_cnt = metric['gt_num']
+
+
+    # For each element in the recall_tresh_list (e.g. [0.3, 0.5, 0.7] -> see VirConv-T.yaml):
+        # Calulate the recall for the ROI and RCNN
+        # ret_dict saves the recall for the ROI and RCNN
+
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
         cur_roi_recall = metric['recall_roi_%s' % str(cur_thresh)] / max(gt_num_cnt, 1)
         cur_rcnn_recall = metric['recall_rcnn_%s' % str(cur_thresh)] / max(gt_num_cnt, 1)

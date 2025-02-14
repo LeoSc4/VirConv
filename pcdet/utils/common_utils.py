@@ -86,7 +86,7 @@ def create_logger(log_file=None, rank=0, log_level=logging.INFO):
     logger.setLevel(log_level if rank == 0 else 'ERROR')
     formatter = logging.Formatter('%(asctime)s  %(levelname)5s  %(message)s')
     console = logging.StreamHandler()
-    console.setLevel(log_level if rank == 0 else 'ERROR')
+    console.setLevel(log_level if rank == 0 else 'ERROR') #original: log_level          -> with logging.ERROR: Critical warnings still be there 
     console.setFormatter(formatter)
     logger.addHandler(console)
     if log_file is not None:
