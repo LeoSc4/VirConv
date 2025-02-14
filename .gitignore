@@ -1,5 +1,6 @@
 data/
 __pycache__/
+output/
 
 
 # Distribution / packaging
@@ -9,3 +10,5 @@ dist/
 
 #PENet depth completion model file
 tools/PENet/pe.pth.tar
+
+pcdet/ops/
