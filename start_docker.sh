@@ -31,9 +31,6 @@ run_docker() {
             --rm \
             --privileged \
             -v "/home/leo/workspace/Docker_tests/Torch181CUDA111/VirConv:/workspace" \
-            --env NVIDIA_VISIBLE_DEVICES=all \
-            --env LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64 \
-            --env PATH=$PATH:/var/lib/snapd/hostfs/usr/bin \
             virconv-pytorch181-cuda111
     fi
 }
