@@ -3,7 +3,7 @@ protobuf==3.19.4
 scikit-image==0.19.2
 waymo-open-dataset-tf-2-5-0
 nuscenes-devkit==1.0.5
-spconv-cu111
+spconv-cu117
 numba==0.53.1
 scipy
 pyyaml
