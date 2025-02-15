@@ -146,8 +146,12 @@ def main():
     eval_output_dir = output_dir / 'eval'
 
     if not args.eval_all:
+        # search for all numbers in the checkpoint filename (args.ckpt)
         num_list = re.findall(r'\d+', args.ckpt) if args.ckpt is not None else []
+
+        # use the last number as the epoch_id
         epoch_id = num_list[-1] if num_list.__len__() > 0 else 'no_number'
+        #create the eval output directory by combining the output directory, the epoch_id, and the test split
         eval_output_dir = eval_output_dir / ('epoch_%s' % epoch_id) / cfg.DATA_CONFIG.DATA_SPLIT['test']
     else:
         eval_output_dir = eval_output_dir / 'eval_all_default'
