@@ -30,7 +30,7 @@ run_docker() {
             --gpus all \
             --rm \
             --privileged \
-            -v "/home/leo/workspace/Docker_tests/Current/VirConv:/workspace" \
+            -v "/home/leo/workspace/Docker_tests/Torch1131CUDA117/VirConv:/workspace" \
             virconv-pytorch1131-cuda117
             
     fi
