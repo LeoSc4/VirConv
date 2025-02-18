@@ -27,6 +27,10 @@ class KittiDatasetMM(DatasetTemplate):
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
 
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
+
+        # Check if split dir exists, read all lines into a list (each line in the file represents a sample ID)
+        # [x.strip() for x in open(split_dir).readlines()] = list comprehension that iterates over each line from file 
+        # Only executed if split_dir exists
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
         self.kitti_infos = []
@@ -287,6 +291,7 @@ class KittiDatasetMM(DatasetTemplate):
             return ret_dict
 
         def generate_single_sample_dict(batch_index, box_dict):
+            # Generate Predictions to each individual sample
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
@@ -299,6 +304,8 @@ class KittiDatasetMM(DatasetTemplate):
                                                                                  retain_low=box_dict['RL'],
                                                                                  score_thresh=box_dict['SCORE_THRESH'])
 
+
+            # Initialisierung des prediction dictionaries (empty dictionary with 0s to be sure that every necessary field is existing although no predictions may be done)
             pred_dict = get_template_prediction(pred_scores.shape[0])
             if pred_scores.shape[0] == 0:
                 return pred_dict
@@ -310,6 +317,8 @@ class KittiDatasetMM(DatasetTemplate):
                 pred_boxes_camera, calib, image_shape=image_shape
             )
 
+
+            ###  Output during a inference!!
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['alpha'] = -np.arctan2(-pred_boxes[:, 1], pred_boxes[:, 0]) + pred_boxes_camera[:, 6]
             pred_dict['bbox'] = pred_boxes_img
@@ -328,6 +337,7 @@ class KittiDatasetMM(DatasetTemplate):
         for index, box_dict in enumerate(pred_dicts):
             frame_id = batch_dict['frame_id'][index]
 
+            # Generate Dictionary for each sample 
             single_pred_dict = generate_single_sample_dict(index, box_dict)
 
 
@@ -336,12 +346,17 @@ class KittiDatasetMM(DatasetTemplate):
             annos.append(single_pred_dict)
 
             if output_path is not None:
+
+                # Create output file for each frame
                 cur_det_file = output_path / ('%s.txt' % frame_id)
+                # Open file to write
                 with open(cur_det_file, 'w') as f:
+                    #Extract each prediction from the dictionary
                     bbox = single_pred_dict['bbox']
                     loc = single_pred_dict['location']
                     dims = single_pred_dict['dimensions']  # lhw -> hwl
 
+                    # Write prediction details to the file
                     for idx in range(len(bbox)):
                         print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
                               % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],

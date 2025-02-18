@@ -579,7 +579,7 @@ def print_str(value, *arg, sstream=None):
     print(value, *arg, file=sstream)
     return sstream.getvalue()
 
-
+# Execute the evaluation of the model 
 def do_eval(gt_annos,
             dt_annos,
             current_classes,
@@ -671,6 +671,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
     min_overlaps = min_overlaps[:, :, current_classes]
     result = ''
     # check whether alpha is valid
+     # alpha is the observation angle of the object
     compute_aos = False
     for anno in dt_annos:
         if anno['alpha'].shape[0] != 0:
@@ -681,6 +682,12 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict)
 
     ret_dict = {}
+
+
+    ### Decisive for the last logs within the evaluate log, e.g.: 
+        # 2025-02-18 08:16:00,264   INFO  Car AP@0.70, 0.70, 0.70:
+        #     bbox AP:99.8534, 98.3079, 96.9371
+
     for j, curcls in enumerate(current_classes):
         # mAP threshold array: [num_minoverlap, metric, class]
         # mAP result: [num_class, num_diff, num_minoverlap]

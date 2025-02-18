@@ -192,6 +192,8 @@ def main():
     )
     eval_output_dir = output_dir / 'eval' / ('eval_with_train')
     eval_output_dir.mkdir(parents=True, exist_ok=True)
+
+    #Define the epochs for evaluation
     args.start_epoch = max(args.epochs - 10, 0)  # Only evaluate the last 10 epochs
 
     repeat_eval_ckpt(

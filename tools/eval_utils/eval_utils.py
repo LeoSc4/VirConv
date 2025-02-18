@@ -59,12 +59,15 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         #begin = time.time()
 
         with torch.no_grad(): #no gradient calculation
+            # Create predictions for every batch 
             pred_dicts, ret_dict, batch_dict = model(batch_dict) #forward pass
         disp_dict = {}
         #end = time.time()
         #print(end-begin)
 
         statistics_info(cfg, ret_dict, metric, disp_dict) #update statistics
+
+        # generate_prediction_dicts individually defined per dataset (kitti_dataset_mm.py, kitti_dataset.py, kitti_dataset_semi.py)
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None
@@ -118,10 +121,17 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     total_pred_objects = 0
     for anno in det_annos:
+        # Summ the amount of predicted objects in all annotations 
         total_pred_objects += anno['name'].__len__()
+
+   
+    # Calculate the average of the predicted objects
     logger.info('Average predicted number of objects(%d samples): %.3f'
                 % (len(det_annos), total_pred_objects / max(1, len(det_annos))))
 
+
+    # Save the results of the predictions to a .pkl file
+     
     path = result_dir / 'result.pkl'
     if os.path.exists(path):
         path = result_dir / ('result_'+str(time.time())[:10]+'.pkl')
@@ -129,6 +139,12 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     with open(path, 'wb') as f:
         pickle.dump(det_annos, f)
     
+
+    # Log the average number of predicted objects - Format e.g. from one log file:
+        # 2025-02-18 08:16:00,264   INFO  Car AP@0.70, 0.70, 0.70:
+        #                           bbox AP:99.8534, 98.3079, 96.9371
+        #                           bev  AP:99.5552, 97.3876, 89.7969
+
     result_str, result_dict = dataset.evaluation(
         det_annos, class_names,
         eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
