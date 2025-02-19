@@ -2,6 +2,9 @@ data/
 __pycache__/
 output/
 
+#results from preprocessing
+tools/results/ 
+
 
 # Distribution / packaging
 build/
