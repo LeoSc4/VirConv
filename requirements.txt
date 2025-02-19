@@ -11,13 +11,13 @@ easydict
 fire
 tqdm
 shapely
-matplotlib
+matplotlib==3.3.0
 opencv-python
 addict
 pyquaternion
 awscli
 open3d
-pandas
+pandas==1.1.5
 future
 pybind11
 tensorboardX==2.4
