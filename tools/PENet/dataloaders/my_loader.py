@@ -388,24 +388,42 @@ def range_sampling_torch(points2, ref_points, calib, pix_dis_x = 4, pix_dis_y = 
 
     return points2[mask_all.cpu().numpy()]
 
+# used for saving the velodyne depth as a velodyne_depth numpy file
 def depth2pointsrgbp(depth, image, calib, lidar):
     depth[depth<0.01] = 0
+    # Get the non-zero indices of the depth map
     uv = depth.nonzero()
     depth_val = depth[depth>0]
 
+    # Shape of new_p = [N x 8]
     new_p = np.zeros(shape=(uv[0].shape[0], 8))
 
+    # Convert image coordinates to rectified camera coordinates
     p_rect = calib.img_to_rect(uv[1], uv[0], depth_val)
+    
+    # Convert rectified camera coordinates to LiDAR coordinates 
     p_lidar = calib.rect_to_lidar(p_rect)
+
+    # Store the point coordinates in the first 3 columns of new_p
     new_p[:, 0:3] = p_lidar
+    # Store the RGB values of the image at the corresponding image coordinates to the lidar point rows in new_p
     new_p[:, 4:7] = image[uv[0], uv[1]]/3
+
+    # Scale the intensity value (column 3) by 10
     new_p = new_p[new_p[:, 2] < 1.]
     new_p = la_sampling2(new_p)
     new_p[:, -1] = 1
 
+    # Shape of new_lidar = [N x8]
     new_lidar = np.zeros(shape=(lidar.shape[0], 8))
+
+    #Copy original lidar points to new_lidar (columns 0-3 -> x,y,z,intensity)
     new_lidar[:, 0:4] = lidar[:, 0:4]
+
+    #Scale the intensity value (column 3) by 10
     new_lidar[:, 3] *= 10
+
+    # Set Lidar Indicator to 2 in order to indicate that the points are from Lidar 
     new_lidar[:, -1] = 2
 
     #new_p = new_p[new_p[:, 2]<1.]
@@ -413,6 +431,10 @@ def depth2pointsrgbp(depth, image, calib, lidar):
     #new_p = voxel_sampling(new_p)
     #new_p = range_sampling_torch(new_p, new_lidar, calib)
 
+    # Concatenting the new_lidar and new_p to get all_points: 
+        ## Combining them along a specific axis 
+        ## here: new_p data rows are placed just below new_lidar data rows (-> axis = 0)
+        ## The different point sources are indicated by the last column (1: image_lidar combination, 2: lidar) 
     all_points = np.concatenate([new_lidar, new_p], 0)
 
     return all_points

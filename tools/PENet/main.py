@@ -382,6 +382,10 @@ def main():
 
     test_dataset = None
     test_loader = None
+
+    # Includes saving the KITTI depth data as velodyne_depth 
+    ## Default for args.test == True
+    ## iterate() -> vis_utils.save_depth_as_points() -> 
     if (args.test):
         test_dataset = KittiDepth('test_completion', args)
         test_loader = torch.utils.data.DataLoader(

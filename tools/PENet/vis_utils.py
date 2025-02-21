@@ -123,7 +123,7 @@ def get_fov_flag(pts_rect, img_shape, calib):
     pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)
     return pts_valid_flag
 
-def save_depth_as_points(depth, idx, root_path):
+def save_depth_as_points(depth, idx, root_path): ##########
 
     file_idx = str(idx).zfill(6)
     file_image_path = os.path.join(root_path, 'image_2', file_idx + '.png')
@@ -147,6 +147,9 @@ def save_depth_as_points(depth, idx, root_path):
 
     out_path = os.path.join(paths, file_idx + '.npy')
     depth = depth.cpu().detach().numpy().reshape(352, 1216,1)
+
+    # Generating final points before saving as velodyne depth with [N x 8]
+    ##
     final_points = depth2pointsrgbp(depth, image, calib, lidar)
     final_points = final_points.astype(np.float16)
     np.save(out_path, final_points)
