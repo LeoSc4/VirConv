@@ -5,8 +5,12 @@ import torch.nn.functional as F
 
 from . import box_utils
 
+# Implementations for the different loss functions used in the model
+
 
 class SigmoidFocalClassificationLoss(nn.Module):
+
+    # <used for classification loss>
     """
     Sigmoid focal cross entropy loss.
     """

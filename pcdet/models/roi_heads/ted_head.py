@@ -155,6 +155,9 @@ def bilinear_interpolate_torch_gridsample(image, samples_x, samples_y):
 
     return torch.nn.functional.grid_sample(image, samples, align_corners=False)
 
+# This is the ROI_Head (or called CRN as well) used in the VirConv-T model.yaml
+## Inherits loss information from Template
+# from RoIHeadTemplate
 class TEDMHead(RoIHeadTemplate):
     def __init__(self, input_channels, model_cfg, point_cloud_range=None, voxel_size=None,  num_class=1,
                  **kwargs):
@@ -848,7 +851,7 @@ class TEDMHead(RoIHeadTemplate):
                 targets_dict_p['rcnn_cls'] = rcnn_cls_p
                 targets_dict_p['rcnn_reg'] = rcnn_reg_p
 
-                self.forward_ret_dict['targets_dict' + rot_num_id] = targets_dict
+                self.forward_ret_dict['targets_dict' + rot_num_id] = targets_dict 
                 self.forward_ret_dict['targets_dict_pi' + rot_num_id] = targets_dict_pi
                 self.forward_ret_dict['targets_dict_p' + rot_num_id] = targets_dict_p
 

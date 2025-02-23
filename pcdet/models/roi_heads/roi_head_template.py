@@ -189,7 +189,7 @@ class RoIHeadTemplate(nn.Module):
             rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
 
-            if loss_cfgs.CORNER_LOSS_REGULARIZATION and fg_sum > 0:
+            if loss_cfgs.CORNER_LOSS_REGULARIZATION and fg_sum > 0:     #fg = foreground (relevante Vorhersagen)
                 # TODO: NEED to BE CHECK
                 fg_rcnn_reg = rcnn_reg.view(rcnn_batch_size, -1)[fg_mask]
                 fg_roi_boxes3d = roi_boxes3d.view(-1, code_size)[fg_mask]
@@ -208,6 +208,7 @@ class RoIHeadTemplate(nn.Module):
                 ).squeeze(dim=1)
                 rcnn_boxes3d[:, 0:3] += roi_xyz
 
+                #
                 loss_corner = loss_utils.get_corner_loss_lidar(
                     rcnn_boxes3d[:, 0:7],
                     gt_of_rois_src[fg_mask][:, 0:7]
@@ -251,7 +252,7 @@ class RoIHeadTemplate(nn.Module):
             rcnn_cls_flat = rcnn_cls.view(-1)
             batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat), rcnn_cls_labels.float(), reduction='none')
             cls_valid_mask = (rcnn_cls_labels >= 0).float()
-            rcnn_loss_cls = (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
+            rcnn_loss_cls = (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)  #clamp(min,max) -> restricting all elements within the range
         elif loss_cfgs.CLS_LOSS == 'CrossEntropy':
             batch_loss_cls = F.cross_entropy(rcnn_cls, rcnn_cls_labels, reduction='none', ignore_index=-1)
             cls_valid_mask = (rcnn_cls_labels >= 0).float()
@@ -264,14 +265,21 @@ class RoIHeadTemplate(nn.Module):
         tb_dict = {'rcnn_loss_cls': rcnn_loss_cls.item()}
         return rcnn_loss_cls, tb_dict
 
+
+    # Loss retrieval for CRN of VirConv-T
     def get_loss(self, tb_dict=None):
         tb_dict = {} if tb_dict is None else tb_dict
         rcnn_loss = 0
         for i in range(6):
+            
             if 'targets_dict'+str(i) in self.forward_ret_dict:
+
                 rcnn_loss_cls, cls_tb_dict = self.get_box_cls_layer_loss(self.forward_ret_dict['targets_dict'+str(i)])
+                # Add the classification loss to the total loss
                 rcnn_loss += rcnn_loss_cls
+
                 rcnn_loss_reg, reg_tb_dict = self.get_box_reg_layer_loss(self.forward_ret_dict['targets_dict'+str(i)])
+                # Add the regression loss to the total loss
                 rcnn_loss += rcnn_loss_reg
 
             if 'targets_dict_pi'+str(i) in self.forward_ret_dict:
@@ -286,7 +294,7 @@ class RoIHeadTemplate(nn.Module):
                 rcnn_loss_reg, reg_tb_dict = self.get_box_reg_layer_loss(self.forward_ret_dict['targets_dict_p' + str(i)])
                 rcnn_loss += 0.5*rcnn_loss_reg
 
-        tb_dict['rcnn_loss'] = rcnn_loss.item()
+        tb_dict['rcnn_loss'] = rcnn_loss.item() # .item() converts the tensor to a scalar. The tensor must have one element.
 
         return rcnn_loss, tb_dict
 

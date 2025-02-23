@@ -39,6 +39,8 @@ class AnchorHeadTemplate(nn.Module):
         self.target_assigner = self.get_target_assigner(anchor_target_cfg)
 
         self.forward_ret_dict = {}
+
+        # Build losses -> default config from VirConv-T uses AnchorHeadSingle which does not define loss themselves -> using heritance from AnchorHeadTemplate
         self.build_losses(self.model_cfg.LOSS_CONFIG)
 
     @staticmethod
@@ -142,17 +144,24 @@ class AnchorHeadTemplate(nn.Module):
         batch_dict.pop('batch_index', None)
         return batch_dict
 
+    # Losses are defined in the AnchorHeadTemplate
     def build_losses(self, losses_cfg):
+        # add the classification loss function
+        ############ 
         self.add_module(
             'cls_loss_func',
             loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
         )
+
+        # Default regression loss type is WeightedSmoothL1Loss (-> VirConv-T.yaml does not specify REG_LOSS_TYPE)
         reg_loss_name = 'WeightedSmoothL1Loss' if losses_cfg.get('REG_LOSS_TYPE', None) is None \
             else losses_cfg.REG_LOSS_TYPE
         self.add_module(
             'reg_loss_func',
             getattr(loss_utils, reg_loss_name)(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
         )
+
+        # add the direction loss function
         self.add_module(
             'dir_loss_func',
             loss_utils.WeightedCrossEntropyLoss()
@@ -175,6 +184,7 @@ class AnchorHeadTemplate(nn.Module):
         )
         return targets_dict
 
+    # Part 1 of the get_loss calculation function
     def get_cls_layer_loss(self):
         cls_preds = self.forward_ret_dict['cls_preds']
         box_cls_labels = self.forward_ret_dict['box_cls_labels']
@@ -205,6 +215,8 @@ class AnchorHeadTemplate(nn.Module):
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)
         cls_preds = cls_preds.view(batch_size, -1, self.num_class)
         one_hot_targets = one_hot_targets[..., 1:]
+
+        # Calculate the classification loss with Sigmoid Focal cross entropy as the loss function
         cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
         cls_loss = cls_loss_src.sum() / batch_size
 
@@ -239,6 +251,8 @@ class AnchorHeadTemplate(nn.Module):
             dir_cls_targets = dir_targets
         return dir_cls_targets
 
+
+    # Part 2 of the get_loss calculation function
     def get_box_reg_layer_loss(self):
         box_preds = self.forward_ret_dict['box_preds']
         box_dir_cls_preds = self.forward_ret_dict.get('dir_cls_preds', None)
@@ -266,9 +280,12 @@ class AnchorHeadTemplate(nn.Module):
                                    box_preds.shape[-1])
         # sin(a - b) = sinacosb-cosasinb
         box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, box_reg_targets)
+
+        # Get Location loss with WeightedSmoothL1Loss as the loss function (default)
         loc_loss_src = self.reg_loss_func(box_preds_sin, reg_targets_sin, weights=reg_weights)  # [N, M]
         loc_loss = loc_loss_src.sum() / batch_size
 
+        # Location Loss of the RPN Box 
         loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
         box_loss = loc_loss
         tb_dict = {
@@ -285,9 +302,13 @@ class AnchorHeadTemplate(nn.Module):
             dir_logits = box_dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
             weights = positives.type_as(dir_logits)
             weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)
+
+            # Calculate the direction loss 
             dir_loss = self.dir_loss_func(dir_logits, dir_targets, weights=weights)
             dir_loss = dir_loss.sum() / batch_size
             dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']
+
+            # RPN Box loss = RPN location loss + RPN direction loss
             box_loss = box_loss+dir_loss
             tb_dict['rpn_loss_dir'] = dir_loss.item()
 
@@ -323,7 +344,8 @@ class AnchorHeadTemplate(nn.Module):
 
         tb_dict.update(tb_dict_box)
 
-        rpn_loss = cls_loss + box_loss
+        #Calculation for RPN_loss = RPN classification loss + RPN Box loss (containing location loss and direction loss)
+        rpn_loss = cls_loss + box_loss    
 
         if self.model_cfg.get('OD_LOSS',False):
             od_loss = self.get_od_loss()

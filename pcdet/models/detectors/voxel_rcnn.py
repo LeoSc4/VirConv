@@ -21,11 +21,13 @@ class VoxelRCNN(Detector3DTemplate):
             pred_dicts, recall_dicts, = self.post_processing(batch_dict)
             return pred_dicts, recall_dicts, batch_dict
 
+
+    # Highest level function for loss calculation
     def get_training_loss(self):
         disp_dict = {}
-        loss_rpn, tb_dict = self.dense_head.get_loss()
-        loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict)#
+        loss_rpn, tb_dict = self.dense_head.get_loss() #get the RPN loss from the DenseHead which is generating proposals (anchors)
+        loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict) #get the RCNN loss for the multiple cascades in VirConv-T
 
-        loss =  loss_rpn + loss_rcnn
+        loss =  loss_rpn + loss_rcnn # equal weighted sum of the two losses
         return loss, tb_dict, disp_dict
 

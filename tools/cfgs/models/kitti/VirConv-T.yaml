@@ -149,7 +149,7 @@ MODEL:
         UPSAMPLE_STRIDES: [1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128]
 
-    DENSE_HEAD:
+    DENSE_HEAD:                       # corresponds to the RPN as it is responsible for generating initial region proposals (anchors) in the VoxelRCNN for 3D detection
         NAME: AnchorHeadSingle
         CLASS_AGNOSTIC: False
 
@@ -263,11 +263,11 @@ MODEL:
                 FG_RATIO: 0.5
                 SAMPLE_ROI_BY_EACH_CLASS: True
                 CLS_SCORE_TYPE: roi_iou_x
-                CLS_FG_THRESH: [0.75]
-                CLS_BG_THRESH: [0.25]
+                CLS_FG_THRESH: [0.75]     #foreground treshold; for config with Car, Pedestrian, Cyclist -> check: https://github.com/hailanyi/VirConv/issues/35
+                CLS_BG_THRESH: [0.25]    #background treshold
                 CLS_BG_THRESH_LO: 0.1
                 HARD_BG_RATIO: 0.8
-                REG_FG_THRESH: [0.5]
+                REG_FG_THRESH: [0.5]   #foreground treshold for regression
                 ENABLE_HARD_SAMPLING: False
                 HARD_SAMPLING_THRESH: [0.5]
                 HARD_SAMPLING_RATIO: [0.5]
