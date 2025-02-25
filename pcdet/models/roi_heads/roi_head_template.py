@@ -9,6 +9,8 @@ from ...utils.bbloss import bb_loss
 import time
 import copy
 
+import wandb
+
 class RoIHeadTemplate(nn.Module):
     def __init__(self, num_class, model_cfg):
         super().__init__()
@@ -188,6 +190,8 @@ class RoIHeadTemplate(nn.Module):
             rcnn_loss_reg = (rcnn_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
             rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
+            wandb.log({"train/roi_reg_general": tb_dict['rcnn_loss_reg']})
+
 
             if loss_cfgs.CORNER_LOSS_REGULARIZATION and fg_sum > 0:     #fg = foreground (relevante Vorhersagen)
                 # TODO: NEED to BE CHECK
@@ -218,6 +222,8 @@ class RoIHeadTemplate(nn.Module):
 
                 rcnn_loss_reg += loss_corner
                 tb_dict['rcnn_loss_corner'] = loss_corner.item()
+                wandb.log({"train/roi_reg_corner": tb_dict['rcnn_loss_corner']})
+
         else:
             raise NotImplementedError
 
@@ -240,6 +246,9 @@ class RoIHeadTemplate(nn.Module):
             b_loss = bb_loss(batch_box_preds[fg_mask], gt_boxes3d_ct[
                 fg_mask]).sum()
             b_loss = b_loss / (fg_mask.sum() + 1)
+        
+        wandb.log({"train/roi_reg_bb": b_loss})   
+
 
         return rcnn_loss_reg+b_loss, tb_dict
 
@@ -263,6 +272,8 @@ class RoIHeadTemplate(nn.Module):
 
         rcnn_loss_cls = rcnn_loss_cls * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight']
         tb_dict = {'rcnn_loss_cls': rcnn_loss_cls.item()}
+        wandb.log({"train/roi_loss_cls": tb_dict['rcnn_loss_cls']})
+
         return rcnn_loss_cls, tb_dict
 
 

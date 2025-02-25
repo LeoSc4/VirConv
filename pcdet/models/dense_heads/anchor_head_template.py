@@ -10,6 +10,8 @@ from ...utils.odiou_loss import odiou_3D
 from ..model_utils.model_nms_utils import class_agnostic_nms
 import copy
 
+import wandb
+
 class AnchorHeadTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training):
         super().__init__()
