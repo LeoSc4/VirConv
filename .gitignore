@@ -15,3 +15,7 @@ dist/
 tools/PENet/pe.pth.tar
 
 pcdet/ops/
+
+# Temporary log wandb setup for inference
+tools/wandb/
+tools/workspace/inference/

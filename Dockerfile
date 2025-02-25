@@ -18,7 +18,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 # Install PyTorch 1.13.1 mit CUDA 11.7
 RUN pip3 install --no-cache-dir torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
 
-ARG CACHE_BUST=1
+# ARG CACHE_BUST=1
 
 # Set non-interactive mode to avoid timezone prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,7 +31,10 @@ COPY requirements.txt /workspace/
 RUN pip install --user -r requirements.txt 
 
 # To access Tensorboard - TO BE TESTED -> This command works inside: export PATH=$HOME/.local/bin:$PATH
-ENV PATH="/root/.local/bin:${PATH}"
+# ENV PATH="/root/.local/bin:${PATH}"
+
+RUN pip install wandb 
+# RUN wandb login      -> log in after starting the docker by using the API key
 
 # Resolve ownership conflicts when using mounted volumes and user permissions
 RUN git config --global --add safe.directory /workspace
