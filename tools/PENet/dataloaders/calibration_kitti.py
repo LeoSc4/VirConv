@@ -63,7 +63,7 @@ class Calibration(object):
         else:
             calib = calib_file
 
-        self.P2 = calib['P2']  # 3 x 4
+        self.P2 = calib['P2']  # 3 x 4      # Camera projection matrix for the left color camera of stereo pair: Describes the transformation from 3D point into 2D-picture coordinates
         self.R0 = calib['R0']  # 3 x 3
         self.V2C = calib['Tr_velo2cam']  # 3 x 4
 
@@ -114,7 +114,7 @@ class Calibration(object):
         :return pts_img: (N, 2)
         """
         pts_rect_hom = self.cart_to_hom(pts_rect)
-        pts_2d_hom = np.dot(pts_rect_hom, self.P2.T)
+        pts_2d_hom = np.dot(pts_rect_hom, self.P2.T) #create homogeneous 2D picture coordinates by multiplying points with the projection matrix
         pts_img = (pts_2d_hom[:, 0:2].T / pts_rect_hom[:, 2]).T  # (N, 2)
         pts_rect_depth = pts_2d_hom[:, 2] - self.P2.T[3, 2]  # depth in rect camera coord
         return pts_img, pts_rect_depth

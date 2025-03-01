@@ -125,34 +125,65 @@ def get_fov_flag(pts_rect, img_shape, calib):
 
 def save_depth_as_points(depth, idx, root_path): ##########
 
-    file_idx = str(idx).zfill(6)
+    
+    ########## File Index Preprocessing and Try Except Block added to use ImageSets that don't start with 000000 idx or contain  ##########
+
+    # ectract the mode (e.g. 'testing' or 'training' from the path
+    type_ImageSet = root_path.split('/')[-1]
+    if type_ImageSet == 'testing':
+        # open the /workspace/data/kitti/ImageSets/test.txt file and get the index of the image
+        # the content is e.g. 
+        with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f:
+            lines = f.readlines()
+            file_idx = int(lines[idx].strip())
+    
+    elif type_ImageSet == 'training':
+        # if the index extends the ImageSet for training, then retrieve the index from the val.txt instead of train.txt
+        with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f:
+            lines = f.readlines()
+            if idx <= len(lines):
+                file_idx = int(lines[idx].strip())
+            if idx > len(lines):
+                idx = idx - len(lines)      # reduce per number of lines to get right index in val.txt
+                with open('/workspace/data/kitti/ImageSets/val.txt', 'r') as f:
+                    lines = f.readlines()
+                    file_idx = int(lines[idx].strip())
+    
+    ################
+
+    file_idx = str(file_idx).zfill(6)
+
     file_image_path = os.path.join(root_path, 'image_2', file_idx + '.png')
     file_velo_path = os.path.join(root_path, 'velodyne', file_idx + '.bin')
     file_calib = os.path.join(root_path, 'calib', file_idx + '.txt')
 
-    calib = calibration_kitti.Calibration(file_calib)
+    try:
+        calib = calibration_kitti.Calibration(file_calib)
 
-    lidar = np.fromfile(str(file_velo_path), dtype=np.float32).reshape(-1, 4)
-    image = np.array(io.imread(file_image_path), dtype=np.int32)
-    image = image[:352, :1216]
+        lidar = np.fromfile(str(file_velo_path), dtype=np.float32).reshape(-1, 4)
+        image = np.array(io.imread(file_image_path), dtype=np.int32)
+        image = image[:352, :1216] # crop to 352x1216
 
-    pts_rect = calib.lidar_to_rect(lidar[:, 0:3])
-    fov_flag = get_fov_flag(pts_rect, image.shape, calib)
-    lidar = lidar[fov_flag]
+        pts_rect = calib.lidar_to_rect(lidar[:, 0:3])
+        fov_flag = get_fov_flag(pts_rect, image.shape, calib)
+        lidar = lidar[fov_flag]
 
 
-    paths = os.path.join(root_path, 'velodyne_depth')
-    if not os.path.exists(paths):
-        os.makedirs(paths)
+        paths = os.path.join(root_path, 'velodyne_depth')
+        if not os.path.exists(paths):
+            os.makedirs(paths)
 
-    out_path = os.path.join(paths, file_idx + '.npy')
-    depth = depth.cpu().detach().numpy().reshape(352, 1216,1)
+        out_path = os.path.join(paths, file_idx + '.npy')
+        depth = depth.cpu().detach().numpy().reshape(352, 1216,1)
 
-    # Generating final points before saving as velodyne depth with [N x 8]
-    ##
-    final_points = depth2pointsrgbp(depth, image, calib, lidar)
-    final_points = final_points.astype(np.float16)
-    np.save(out_path, final_points)
+        # Generating final points before saving as velodyne depth with [N x 8]
+        ##
+        final_points = depth2pointsrgbp(depth, image, calib, lidar)
+        final_points = final_points.astype(np.float16)
+        np.save(out_path, final_points)
+    except Exception as e:
+        print("For image idx: ", file_idx, " Error: ", e)
+        pass
 
 
 def save_depth_as_uint16png_upload(img, filename):
