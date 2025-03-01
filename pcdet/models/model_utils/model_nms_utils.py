@@ -11,6 +11,11 @@ def limit(ang):
 
     return ang
 
+# WBF = Weighted Box Fusion: Alternative to traditional Non-Maximum Suppression (NMS)
+# WBF is a method to merge multiple detections of the same object into a single detection.
+# The goal of WBF is to improve the accuracy of the final bounding box predictions by considering the contributions of all overlapping boxes, 
+# rather than simply selecting the one with the highest score as in traditional NMS.
+
 def compute_WBF(det_names,
                 det_scores,
                 det_boxes,
