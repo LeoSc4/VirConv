@@ -10,6 +10,9 @@ from pcdet.datasets.dataset import DatasetTemplate
 from pcdet.models.model_utils import model_nms_utils
 import time
 
+# Extends the DatasetTemplate and includes functions to load, process and format the data for training and evaluation 
+
+
 class KittiDatasetMM(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
@@ -34,6 +37,8 @@ class KittiDatasetMM(DatasetTemplate):
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
         self.kitti_infos = []
+
+        # Include KITTI data from info files: 
         self.include_kitti_data(self.mode)
 
     def include_kitti_data(self, mode):
@@ -64,6 +69,7 @@ class KittiDatasetMM(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+    # Load raw LiDAR point cloud data from .bin files
     def get_lidar(self, idx):
         lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
         assert lidar_file.exists()
@@ -71,26 +77,31 @@ class KittiDatasetMM(DatasetTemplate):
 
         return p
 
+    # Load modified (multi-modal) LiDAR point cloud data from .npy files
     def get_lidar_mm(self, idx):
         lidar_file = self.root_split_path / self.dataset_cfg.MM_PATH / ('%s.npy' % idx)
         assert lidar_file.exists()
         return np.load(lidar_file).astype(np.float32)
 
+    # retrieve image dimensions
     def get_image_shape(self, idx):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
         assert img_file.exists()
         return np.array(io.imread(img_file).shape[:2], dtype=np.int32)
 
+    # loads the actual image data
     def get_image(self, idx):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
         assert img_file.exists()
         return np.array(io.imread(img_file))
 
+    # retrieve ground truth labels from .txt files
     def get_label(self, idx):
         label_file = self.root_split_path / 'label_2' / ('%s.txt' % idx)
         assert label_file.exists()
         return object3d_kitti.get_objects_from_label(label_file)
 
+    # load calibration data from .txt files
     def get_calib(self, idx):
         calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
         assert calib_file.exists()
@@ -231,6 +242,8 @@ class KittiDatasetMM(DatasetTemplate):
             gt_boxes = annos['gt_boxes_lidar']
 
             num_obj = gt_boxes.shape[0]
+
+            # Get points in Bounding boxes for the Ground truth
             point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
                 torch.from_numpy(points[:, 0:3]), torch.from_numpy(gt_boxes)
             ).numpy()  # (nboxes, npoints)

@@ -122,6 +122,7 @@ class KittiDataset(DatasetTemplate):
 
         return pts_valid_flag
 
+    # extract metadata and labels for a given sample
     def get_infos(self, num_workers=4, has_label=True, count_inside_pts=True, sample_id_list=None):
         import concurrent.futures as futures
 
