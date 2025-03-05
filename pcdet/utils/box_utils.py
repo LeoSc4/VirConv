@@ -6,7 +6,7 @@ from scipy.spatial import Delaunay
 from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 from . import common_utils
 
-
+### HELPFUL FOR LATER PROCESSING STAGES OF OUR SCENE - IW ###
 def in_hull(p, hull):
     """
     :param p: (N, K) test points
