@@ -438,7 +438,14 @@ class KittiDatasetMM(DatasetTemplate):
             gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
             gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
             if self.training and 'num_points_in_gt' in annos:
-                nmask = annos['num_points_in_gt']>0
+                
+                ######### WARNUNG #########################################################################
+                # print('WARNING: num_points_in_gt is used in the current implementation')
+                # nmask = annos['num_points_in_gt']>0
+                print('WARNING: num_points_in_gt is NOT used in the current implementation')
+                nmask = annos['num_points_in_gt']>=0
+                ########################################################################################
+
                 annos['num_points_in_gt'] = annos['num_points_in_gt'][nmask]
                 gt_names = gt_names[nmask]
                 gt_boxes_lidar = gt_boxes_lidar[nmask]
