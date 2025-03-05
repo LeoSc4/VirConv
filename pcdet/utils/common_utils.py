@@ -55,8 +55,12 @@ def rotate_points_along_z(points, angle):
     points_rot = torch.cat((points_rot, points[:, :, 3:]), dim=-1)
     return points_rot.numpy() if is_numpy else points_rot
 
+# POINT_CLOUD_RANGE is used ! -> Points can get lost completely from the data_dict?
+## WARNUNG -> Coordinate Frame = rotated!? when considering rendered scene, cf and point cloud range -> the mask should not be empty for POINT_CLOUD_RANGE= POINT_CLOUD_RANGE: [-2000, -4000, -8, 0, 2000, 200]
 
+# POINT_CLOUD_RANGE = [x_min, y_min, z_min, x_max, y_max, z_max]
 def mask_points_by_range(points, limit_range):
+    # function that only points within the range are kept
     mask = (points[:, 0] >= limit_range[0]) & (points[:, 0] <= limit_range[3]) \
            & (points[:, 1] >= limit_range[1]) & (points[:, 1] <= limit_range[4])
     return mask

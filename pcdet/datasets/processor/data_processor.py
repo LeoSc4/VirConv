@@ -84,6 +84,8 @@ class DataProcessor(object):
             else:
                 rot_num_id_str = str(rot_num_id)
             mask = common_utils.mask_points_by_range(data_dict['points'+rot_num_id_str], self.point_cloud_range)
+            
+            ##### Points get masked out if they are outside the range -> possible cause for missing points ######
             data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
 
             if 'mm' in data_dict:
