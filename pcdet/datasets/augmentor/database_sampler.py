@@ -78,6 +78,9 @@ class DataBaseSampler(object):
                 self.logger.info('Database filter by difficulty %s: %d => %d' % (key, pre_len, len(new_db_infos[key])))
         return new_db_infos
 
+
+    # Filters the database by the minimum number of points in the ground truth 
+    ## This is a limitating factor for the dataset until 01.03. as there are no points in the ground truth which triggers the following
     def filter_by_min_points(self, db_infos, min_gt_points_list):
         for name_num in min_gt_points_list:
             name, min_num = name_num.split(':')

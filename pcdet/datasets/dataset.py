@@ -209,7 +209,7 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        if self.training:
+        if self.training:                            ### Data Augmentor stop possibility
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
 
             data_dict = self.data_augmentor.forward(
@@ -268,7 +268,7 @@ class DatasetTemplate(torch_data.Dataset):
                 data_dict['gt_boxes'+rot_num_id] = np.concatenate([boxes1, boxes2 ])
 
             if 'mm' in data_dict:
-                if self.dataset_cfg.get('LATER_FUSION', True):
+                if self.dataset_cfg.get('LATER_FUSION', True): # if LATER_FUSION not available, then True
                     points_mm = data_dict['points' + rot_num_id][data_dict['points' + rot_num_id][:, -1] == 1]
                     points = data_dict['points'+rot_num_id][data_dict['points'+rot_num_id][:, -1] == 2]
 
