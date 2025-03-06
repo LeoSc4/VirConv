@@ -68,10 +68,22 @@ class Calibration(object):
         self.V2C = calib['Tr_velo2cam']  # 3 x 4
 
         # Camera intrinsics and extrinsics
-        self.cu = self.P2[0, 2]
-        self.cv = self.P2[1, 2]
-        self.fu = self.P2[0, 0]
-        self.fv = self.P2[1, 1]
+        ## projection matrix = K * [R|T]
+                ## Intrinsics describe the projection of 3D World to 2D image 
+                # K = intrinsic matrix
+                    # [fu, 0, cu]
+                    # [0, fv, cv]
+                    # [0, 0, 1]
+                ## Extrinsics describe the transformation of the camera coordinate system to the world coordinate system
+                # R = rotation matrix
+                # T = translation matrix
+                    # tx = Translation in X-Richtung 
+                    # ty = Translation in Y-Richtung
+                    
+        self.cu = self.P2[0, 2]         # optical axis in pixel-x-direction // ptische Achse in Pixel X-Richtung
+        self.cv = self.P2[1, 2]         # optical axis in pixel-y-direction // optische AChse in Pixel y-Richtung
+        self.fu = self.P2[0, 0]         # focal length in x-direction (scaled in pixel)
+        self.fv = self.P2[1, 1]         # focal length in y-direction (scaled in pixel)
         self.tx = self.P2[0, 3] / (-self.fu)
         self.ty = self.P2[1, 3] / (-self.fv)
 
