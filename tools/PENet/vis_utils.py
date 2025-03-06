@@ -114,13 +114,13 @@ def get_fov_flag(pts_rect, img_shape, calib):
         calib:
 
     Returns:
-
+        # LS: returns a mask that is True for points that are in the image and in front of the camera
     """
-    pts_img, pts_rect_depth = calib.rect_to_img(pts_rect)
-    val_flag_1 = np.logical_and(pts_img[:, 0] >= 0, pts_img[:, 0] < img_shape[1])
-    val_flag_2 = np.logical_and(pts_img[:, 1] >= 0, pts_img[:, 1] < img_shape[0])
-    val_flag_merge = np.logical_and(val_flag_1, val_flag_2)
-    pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)
+    pts_img, pts_rect_depth = calib.rect_to_img(pts_rect)     # bring rectified points to image plane
+    val_flag_1 = np.logical_and(pts_img[:, 0] >= 0, pts_img[:, 0] < img_shape[1]) # check if x-coordinates of points are in the width of the image 
+    val_flag_2 = np.logical_and(pts_img[:, 1] >= 0, pts_img[:, 1] < img_shape[0]) # check if y-coordinates of points are in the height of the image
+    val_flag_merge = np.logical_and(val_flag_1, val_flag_2)   # merge the two flags
+    pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)    # check if points are in front of the camera
     return pts_valid_flag
 
 def save_depth_as_points(depth, idx, root_path): ##########
@@ -133,18 +133,23 @@ def save_depth_as_points(depth, idx, root_path): ##########
     if type_ImageSet == 'testing':
         # open the /workspace/data/kitti/ImageSets/test.txt file and get the index of the image
         # the content is e.g. 
-        with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f:
+        # with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f:
+
+        with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f: # for iw_custom_dataset2
             lines = f.readlines()
             file_idx = int(lines[idx].strip())
     
     elif type_ImageSet == 'training':
         # if the index extends the ImageSet for training, then retrieve the index from the val.txt instead of train.txt
-        with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f:
+        # with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f:
+
+        with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f: # for iw_custom_dataset2
             lines = f.readlines()
             if idx <= len(lines):
                 file_idx = int(lines[idx].strip())
             if idx > len(lines):
                 idx = idx - len(lines)      # reduce per number of lines to get right index in val.txt
+
                 with open('/workspace/data/kitti/ImageSets/val.txt', 'r') as f:
                     lines = f.readlines()
                     file_idx = int(lines[idx].strip())
@@ -162,7 +167,16 @@ def save_depth_as_points(depth, idx, root_path): ##########
 
         lidar = np.fromfile(str(file_velo_path), dtype=np.float32).reshape(-1, 4)
         image = np.array(io.imread(file_image_path), dtype=np.int32)
+        
+        #### TEMP Test ###### -  Cropping of the image disabled
+        # Check this Issue to adapt to the own image size 
+        # https://github.com/JUGGHM/PENet_ICRA2021/issues/10
+
         image = image[:352, :1216] # crop to 352x1216
+
+        # TEMP 
+        ## save the cropped image to check if the cropping is correct
+        cv2.imwrite('/workspace/data/kitti/training/image_2/cropped_image_000000.png', image)
 
         pts_rect = calib.lidar_to_rect(lidar[:, 0:3])
         fov_flag = get_fov_flag(pts_rect, image.shape, calib)
