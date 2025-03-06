@@ -410,7 +410,7 @@ def depth2pointsrgbp(depth, image, calib, lidar):
     new_p[:, 4:7] = image[uv[0], uv[1]]/3
 
     # Scale the intensity value (column 3) by 10
-    new_p = new_p[new_p[:, 2] < 1.]
+    ##### new_p = new_p[new_p[:, 2] < 1.]
     new_p = la_sampling2(new_p)
     new_p[:, -1] = 1
 
