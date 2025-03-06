@@ -156,6 +156,8 @@ args.result = os.path.join('..', 'results')
 args.use_rgb = ('rgb' in args.input)
 args.use_d = 'd' in args.input
 args.use_g = 'g' in args.input
+
+# Define the cropping height 
 args.val_h = 352
 args.val_w = 1216
 print(args)

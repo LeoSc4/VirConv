@@ -352,6 +352,7 @@ class KittiDepth(data.Dataset):
     def __init__(self, split, args):
         self.args = args
         self.split = split
+        # Transforms images according to the set val_h height and val_w width from main.py
         paths, transform = get_paths_and_transform(split, args)
         self.paths = paths
         self.transform = transform
@@ -372,6 +373,7 @@ class KittiDepth(data.Dataset):
         rgb, sparse = self.my_loader[index]
 
         target = None
+        # Depending on the defined height and width (-> see main.py in PENet)
         position = CoordConv.AddCoordsNp(self.args.val_h, self.args.val_w)
         position = position.call()
         rgb, sparse, target, position = self.transform(rgb, sparse, target, position, self.args)
