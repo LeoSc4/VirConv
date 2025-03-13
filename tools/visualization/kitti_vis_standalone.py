@@ -90,6 +90,50 @@ def load_kitti_labels(label_path):
     
     return bboxes
 
+def load_kitti_labels_raw(label_path):
+    """
+    Load KITTI label file and extract 3D bounding box information
+    Args:
+        label_path: Path to the KITTI label file
+    Returns:
+        bboxes: List of dictionaries containing bbox info for each object
+    """
+    bboxes = []
+    
+    with open(label_path, 'r') as f:
+        lines = f.readlines()
+        
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 15:  # Basic validation
+            continue
+            
+        # KITTI format: type truncated occluded alpha x1 y1 x2 y2 h w l x y z rotation_y [score]
+        obj_type = parts[0]
+        # Skip DontCare labels
+        if obj_type == 'DontCare':
+            continue
+
+        # 2D bounding box parameters
+        u1, v1, u2, v2 = float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])
+
+
+        # 3D bounding box parameters (in camera coordinate system)
+        h, w, l = float(parts[8]), float(parts[9]), float(parts[10])
+        x, y, z = float(parts[11]), float(parts[12]), float(parts[13])
+        rotation_y = float(parts[14])
+        
+        bboxes.append({
+            'bbox_2d': [u1, v1, u2, v2],
+            'type': obj_type,
+            'dimensions': [l, h, w],  # KITTI order is l, h, w (length, height, width)
+            'location': [x, y, z],    # Center of box                                           ############ Manual correction
+            'rotation_y': rotation_y  # Rotation around Y-axis
+        })
+    
+    return bboxes
+
+
 def kitti_to_open3d_bbox(bbox_data, calib=None):
     """
     Convert KITTI format bounding box to Open3D OrientedBoundingBox
