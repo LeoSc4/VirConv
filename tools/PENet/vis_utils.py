@@ -204,7 +204,7 @@ def save_depth_as_points(depth, idx, root_path): ##########
     np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_fov_flag_II.npy', fov_flag)
     # save_point_cloud_as_pcd(fov_flag, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_fov_flag_II.pcd')
 
-
+    """     Commented out the FOV_flag 
     lidar = lidar[fov_flag]
     print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: Applied the fov_flag to the lidar points')
     #+# save the lidar to check if the points are in the right range (use current date time)
@@ -212,7 +212,7 @@ def save_depth_as_points(depth, idx, root_path): ##########
     print("#+# Saving the lidar with applied fov as .npy & .pcd file")
     np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_lidar_with_applied_fov_III.npy', lidar)
     save_point_cloud_as_pcd(lidar, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_lidar_with_applied_fov_III.pcd')
-
+    """
 
     paths = os.path.join(root_path, 'velodyne_depth')
     if not os.path.exists(paths):
