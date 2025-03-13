@@ -13,9 +13,12 @@ from dataloaders import transforms
 import CoordConv
 from dataloaders.my_loader import MyLoader
 
+from datetime import datetime
+
 input_options = ['d', 'rgb', 'rgbd', 'g', 'gd']
 oheight, owidth, cwidth = 256, 1216, 1216
 def load_calib():
+
     """
     Temporarily hardcoding the calibration matrix using calib file from 2011_09_26
     """
@@ -26,6 +29,8 @@ def load_calib():
     Proj_str = P_rect_line.split(":")[1].split(" ")[1:]
     Proj = np.reshape(np.array([float(p) for p in Proj_str]),
                       (3, 4)).astype(np.float32)
+    print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Loading Hard coded calib for camera matrix - RAW \n", Proj)
+
     K = Proj[:3, :3]  # camera matrix
 
     # note: we will take the center crop of the images during augmentation
@@ -305,8 +310,8 @@ def handle_gray(rgb, args):
     if not args.use_g:
         return rgb, None
     else:
-        img = np.array(Image.fromarray(rgb).convert('L'))
-        img = np.expand_dims(img, -1)
+        img = np.array(Image.fromarray(rgb).convert('L')) # Converts the image to a grayscale image 
+        img = np.expand_dims(img, -1) # adds a dimension to get the rgb image into shape (Height, Width, 1)
         if not args.use_rgb:
             rgb_ret = None
         else:
@@ -357,8 +362,10 @@ class KittiDepth(data.Dataset):
         self.paths = paths
         self.transform = transform
         self.K = load_calib()
+        print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Camera Calibration Matrix K: \n", self.K)
         self.threshold_translation = 0.1
         self.my_loader = MyLoader(args.detpath)
+        print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Creating MyLoader")
 
     def __getraw__(self, index):
         rgb = rgb_read(self.paths['rgb'][index]) if \
@@ -378,12 +385,18 @@ class KittiDepth(data.Dataset):
         position = position.call()
         rgb, sparse, target, position = self.transform(rgb, sparse, target, position, self.args)
 
+        #+# saving the self.transformed image to pipeline investigation 
+        cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_transformed_image_000000.png', rgb)
+
         rgb, gray = handle_gray(rgb, self.args)
         # candidates = {"rgb": rgb, "d": sparse, "gt": target, \
         #              "g": gray, "r_mat": r_mat, "t_vec": t_vec, "rgb_near": rgb_near}
         candidates = {"rgb": rgb, "d": sparse, "gt": target, \
                       "g": gray, 'position': position, 'K': self.K}
 
+        #+# saving the gray scaled image to pipeline_investigation 
+        cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_gray_image_000000.png', gray)
+        
         items = {
             key: to_float_tensor(val)
             for key, val in candidates.items() if val is not None

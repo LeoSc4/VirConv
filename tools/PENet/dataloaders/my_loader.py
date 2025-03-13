@@ -12,6 +12,9 @@ import torch.nn.functional as F
 
 import torch
 import numpy as np
+
+from datetime import datetime 
+
 tv = None
 try:
     import cumm.tensorview as tv
@@ -466,6 +469,9 @@ class MyLoader():
         points = np.fromfile(str(file_velo_path), dtype=np.float32).reshape(-1, 4)
         image = np.array(io.imread(file_image_path), dtype=np.int32)
         image = image[:352, :1216]
+
+        # save the image in the path for pipeline investigation
+        cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_My_loader_get_item_image_cropped_000000.png', image.astype(np.uint8))
 
         rgb, depth = load_depth_input(calib, image, points)
 

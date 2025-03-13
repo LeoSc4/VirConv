@@ -1,5 +1,7 @@
-from visual_utils import open3d_vis_utils as VisOpen3D
+from tools.visual_utils import open3d_vis_utils as VisOpen3D
 import numpy as np 
+
+import open3d as o3d
 
 # vis_utils from LS
 
@@ -93,6 +95,30 @@ def visualize_pc_bbox_results(selected_frame, det_annos, gt_boxes_in_camera_cf, 
         ref_labels=None,                                            
         ref_scores=None                                         
         )
+
+
+def save_point_cloud_as_pcd(points, filename):
+    """
+    Saves the point cloud as .pcd file. 
+    
+    Args:
+        points (numpy.ndarray): Point cloud as Nx3 or Nx4 array.
+        filename (str): filename of the .pcd
+    """
+    if points.shape[1] != 4: 
+        print("shape of the input points: ", points.shape)
+
+    point_cloud = o3d.geometry.PointCloud()
+    
+    point_cloud.points = o3d.utility.Vector3dVector(points[:, :3])
+    
+    # Optional: Set colors if existens 
+    # if points.shape[1] == 4:
+        # point_cloud.colors = o3d.utility.Vector3dVector(points[:, 3:6] / 255.0)
+    
+    # Save the point cloud as .pcd file
+    o3d.io.write_point_cloud(filename, point_cloud)
+
 
 
 def compare_arrays(array1, array2):

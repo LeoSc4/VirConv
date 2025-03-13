@@ -1,5 +1,8 @@
 import numpy as np
 import re
+
+from datetime import datetime 
+
 '''
 def get_calib_from_file(calib_file):
     with open(calib_file) as f:
@@ -26,6 +29,9 @@ def get_calib_from_file(filepath):
     '''
 
     data2 = {}
+
+    #+# Hardcoded R0 table !!!    -> is used for the transformation of Lidar camera to the Koordinatesystem of the camera!
+
     R0 = np.array([[ 0.99992624,  0.00965411, -0.0072371 ],
                                           [-0.00968531,  0.99994343, -0.00433077],
                                           [ 0.00719491,  0.00440054,  0.99996366]])
@@ -44,14 +50,22 @@ def get_calib_from_file(filepath):
                 vtc_mat = np.array(vtc_mat[-12:], np.float32)
 
             if line[:7] == "R0_rect" or line[:6] == "R_rect":
+                # Update to the previously hardcoded table R0    
                 R0 = re.split(" ", line.strip())
                 R0 = np.array(R0[-9:], np.float32)
 
-    data2["P2"]=P2.reshape(3, 4)
+    #+# Create a dictionary with the parsed calibration values #+#
+
+    data2["P2"]=P2.reshape(3, 4)                    
     data2["P3"]=P3.reshape(3, 4)
     data2["Tr_velo2cam"]=vtc_mat.reshape(3, 4)
-    data2["R0"]=R0.reshape(3, 3)
+    data2["R0"]=R0.reshape(3, 3)                    #+# R0 is the rectification matrix that is first read from hardcoded but then updated acc. to file
 
+    print(datetime.now().strftime("%H:%M:%S"), "(#+#) BLOCK Load test data set (#+#) - Calibration file loaded from specific file")
+    print("P2: ", data2["P2"])
+    print("P3: ", data2["P3"])
+    print("Tr_velo2cam: ", data2["Tr_velo2cam"])
+    print("R0: ", data2["R0"])
     return data2
 
 
@@ -80,7 +94,7 @@ class Calibration(object):
                     # tx = Translation in X-Richtung 
                     # ty = Translation in Y-Richtung
                     
-        self.cu = self.P2[0, 2]         # optical axis in pixel-x-direction // ptische Achse in Pixel X-Richtung
+        self.cu = self.P2[0, 2]         # optical axis in pixel-x-direction // optische Achse in Pixel X-Richtung
         self.cv = self.P2[1, 2]         # optical axis in pixel-y-direction // optische AChse in Pixel y-Richtung
         self.fu = self.P2[0, 0]         # focal length in x-direction (scaled in pixel)
         self.fv = self.P2[1, 1]         # focal length in y-direction (scaled in pixel)

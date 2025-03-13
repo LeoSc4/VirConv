@@ -22,6 +22,11 @@ from model import PENet_C2
 from model import PENet_C4
 import time
 
+import sys
+from datetime import datetime
+
+
+
 parser = argparse.ArgumentParser(description='Sparse-to-Dense')
 parser.add_argument('-n',
                     '--network-model',
@@ -200,11 +205,13 @@ def iterate(mode, args, loader, model, optimizer, logger, epoch):
     for i, batch_data in enumerate(loader):
 
         dstart = time.time()
+        # Preparing data for processing on the GPU
         batch_data = {
             key: val.to(device)
             for key, val in batch_data.items() if val is not None
         }
 
+        # Extract gt_label if mode is not test_prediction and not test_completion
         gt = batch_data[
             'gt'] if mode != 'test_prediction' and mode != 'test_completion' else None
         data_time = time.time() - dstart
@@ -223,6 +230,9 @@ def iterate(mode, args, loader, model, optimizer, logger, epoch):
             st1_pred, st2_pred, pred = model(batch_data)
         else:
             start = time.time()
+
+            # Forward pass
+            print("(#+#) Forward pass in the iterate of Block Load test dataset (#+#)")
             pred = model(batch_data)
 
         if(args.evaluate):
@@ -271,9 +281,9 @@ def iterate(mode, args, loader, model, optimizer, logger, epoch):
         # measure accuracy and record loss
         with torch.no_grad():
             mini_batch_size = next(iter(batch_data.values())).size(0)
-            result = Result()
-            if mode != 'test_prediction' and mode != 'test_completion':
-                result.evaluate(pred.data, gt.data, photometric_loss)
+            result = Result()                                                      #+# Results are initialized with 0 
+            if mode != 'test_prediction' and mode != 'test_completion':            #+# Results are not updated as 'test_completion' is usually the mode for out pipeline
+                result.evaluate(pred.data, gt.data, photometric_loss)           # Evaluate the result with MAE, MSE, RMSE etc.
                 [
                     m.update(result, gpu_time, data_time, mini_batch_size)
                     for m in meters
@@ -285,6 +295,7 @@ def iterate(mode, args, loader, model, optimizer, logger, epoch):
                 logger.conditional_save_img_comparison(mode, i, batch_data, pred,
                                                    epoch)
                 logger.conditional_save_pred(mode, i, pred, epoch)
+                print("#+#Not updating the result as mode is not unequal to 'test_prediction' and 'test_completion'")
         end_time = time.time()-dstart
         print('iter: ', i,'  ',  'remain time:', (len(loader)-i)*end_time//60, 'min')
     avg = logger.conditional_save_info(mode, average_meter, epoch)
@@ -299,7 +310,20 @@ def main():
     global args
     checkpoint = None
     is_eval = False
-    if args.evaluate:
+
+    # write me all print statements in a file and store it in the results folder with the current time 
+    # create directory if not available 
+    if not os.path.exists(os.path.join('results', 'log')):
+        os.makedirs(os.path.join('results', 'log'))
+    
+    #+# Starting the main.py #+#
+    print("(#+#) Starting the main.py (#+#)")
+
+    
+    sys.stdout = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')   
+    sys.stderr = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')
+
+    if args.evaluate:       # is used with default command as evaluate = 'pe.pth.tar'
         args_new = args
         if os.path.isfile(args.evaluate):
             print("=> loading checkpoint '{}' ... ".format(args.evaluate),
@@ -341,7 +365,7 @@ def main():
     elif (is_eval == False):
         if (args.dilation_rate == 1):
             model = PENet_C1_train(args).to(device)
-        elif (args.dilation_rate == 2):
+        elif (args.dilation_rate == 2):                   # default delation rate 
             model = PENet_C2_train(args).to(device)
         elif (args.dilation_rate == 4):
             model = PENet_C4(args).to(device)
@@ -388,7 +412,7 @@ def main():
     # Includes saving the KITTI depth data as velodyne_depth 
     ## Default for args.test == True
     ## iterate() -> vis_utils.save_depth_as_points() -> 
-    if (args.test):
+    if (args.test):                                                 # Test = True (per default)
         test_dataset = KittiDepth('test_completion', args)
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
@@ -396,6 +420,8 @@ def main():
             shuffle=False,
             num_workers=1,
             pin_memory=True)
+        print(datetime.now().strftime("%H:%M:%S"), "#+# BLOCK  Load dataset:  Test_loader created based on torch DataLoader with KittiDepth object")
+
         iterate("test_completion", args, test_loader, model, None, logger, 0)
         return
 
@@ -408,6 +434,8 @@ def main():
         pin_memory=True)  # set batch size to be 1 for validation
     print("\t==> val_loader size:{}".format(len(val_loader)))
 
+
+    # Not used in default command
     if is_eval == True:
         for p in model.parameters():
             p.requires_grad = False
@@ -442,6 +470,8 @@ def main():
 
     model = torch.nn.DataParallel(model)
 
+
+    # Not used in default command
     # Data loading code
     print("=> creating data loaders ... ")
     if not is_eval:
@@ -453,6 +483,8 @@ def main():
                                                    pin_memory=True,
                                                    sampler=None)
         print("\t==> train_loader size:{}".format(len(train_loader)))
+
+
 
     print("=> starting main loop ...")
     for epoch in range(args.start_epoch, args.epochs):
