@@ -146,7 +146,8 @@ def kitti_to_open3d_bbox(bbox_data, calib=None):
     # Extract parameters
     dimensions = bbox_data['dimensions']  # length(l), height(h), width(w)
     location = bbox_data['location']     # x, y, z (center)
-    rotation_y = bbox_data['rotation_y'] + np.deg2rad(90) # rotation around y-axis                 ############ Manual correction
+    rotation_y = bbox_data['rotation_y'] # rotation around y-axis                 
+    # rotation_y = bbox_data['rotation_y'] + np.deg2rad(90) # rotation around y-axis                 ############ Manual correction
     obj_type = bbox_data['type']
     
     # Create rotation matrix from rotation_y
