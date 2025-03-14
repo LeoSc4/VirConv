@@ -5,6 +5,8 @@ from skimage import transform
 
 from ...utils import box_utils, common_utils
 
+from tools.visual_utils.vis_utils_ls import save_point_cloud_as_pcd
+
 tv = None
 try:
     import cumm.tensorview as tv
@@ -50,6 +52,7 @@ class VoxelGeneratorWrapper():
                 voxels, coordinates, num_points = voxel_output
         else:
             assert tv is not None, f"Unexpected error, library: 'cumm' wasn't imported properly."
+            #+# DEBUG - voxel_output is None in our case // points are not empty #+#
             voxel_output = self._voxel_generator.point_to_voxel(tv.from_numpy(points))
             tv_voxels, tv_coordinates, tv_num_points = voxel_output
             # make copy with numpy(), since numpy_view() will disappear as soon as the generator is deleted
@@ -83,14 +86,22 @@ class DataProcessor(object):
                 rot_num_id_str = ''
             else:
                 rot_num_id_str = str(rot_num_id)
-            mask = common_utils.mask_points_by_range(data_dict['points'+rot_num_id_str], self.point_cloud_range)
+            # mask = common_utils.mask_points_by_range(data_dict['points'+rot_num_id_str], self.point_cloud_range)
             
             ##### Points get masked out if they are outside the range -> possible cause for missing points ######
-            data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
+            # data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
+            data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str]
+            print("WARNING - Masking of points based on point cloud range is DISABLED.")
 
             if 'mm' in data_dict:
-                mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
-                data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str][mask]
+                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                # np.save(f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.npy", data_dict['points_mm'+rot_num_id_str])              # (#+#)
+                # mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
+                # data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str][mask]
+                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_mm_check/points_mm{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
+                print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
+                pass
 
             if data_dict.get('gt_boxes'+rot_num_id_str, None) is not None and config.REMOVE_OUTSIDE_BOXES:
                 mask = box_utils.mask_boxes_outside_range_numpy(
@@ -136,6 +147,7 @@ class DataProcessor(object):
             # to avoid pickling issues in multiprocess spawn
             return partial(self.transform_points_to_voxels, config=config)
 
+        #+# DEBUG - voxel_generator is None in our case #+#
         if self.voxel_generator is None:
             self.voxel_generator = VoxelGeneratorWrapper(
                 vsize_xyz=config.VOXEL_SIZE,
