@@ -251,7 +251,7 @@ class DatasetTemplate(torch_data.Dataset):
 
             # swap the scene for augmentation
             if self.training and np.random.choice([0,1]):
-                randx = np.random.random()*70.4
+                randx = np.random.random()*70.4                     # 
                 randx_1 = 70.4-randx
                 points = data_dict['points'+rot_num_id]
                 points[points[:,0]>70.4]=0
@@ -297,7 +297,7 @@ class DatasetTemplate(torch_data.Dataset):
         if (not self.dataset_cfg.get('LATER_FUSION', True)) and 'mm' in data_dict:
             data_dict.pop('mm')
 
-
+        #+# Create Point Feature Encoding (PFE) for each point cloud -> Points get lost?
         data_dict = self.point_feature_encoder.forward(data_dict)
         data_dict = self.data_processor.forward(
             data_dict=data_dict
