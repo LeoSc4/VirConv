@@ -43,8 +43,8 @@ class PointFeatureEncoder(object):
                     data_dict['points_mm'+rot_num_id]
                 )
 
-        print("WARNING: use_lead_xyz is set to True - independent from MM settings!")            
-        use_lead_xyz = True
+        # print("WARNING: use_lead_xyz is set to True - independent from MM settings!")            
+        # use_lead_xyz = True
         data_dict['use_lead_xyz'] = use_lead_xyz
 
         return data_dict

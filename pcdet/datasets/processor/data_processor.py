@@ -86,21 +86,29 @@ class DataProcessor(object):
                 rot_num_id_str = ''
             else:
                 rot_num_id_str = str(rot_num_id)
-            # mask = common_utils.mask_points_by_range(data_dict['points'+rot_num_id_str], self.point_cloud_range)
+            mask = common_utils.mask_points_by_range(data_dict['points'+rot_num_id_str], self.point_cloud_range)
             
             ##### Points get masked out if they are outside the range -> possible cause for missing points ######
-            # data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
-            data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str]
-            print("WARNING - Masking of points based on point cloud range is DISABLED.")
+            data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
+            print("WARNING - Masking of points based on point cloud range is ENABLED.")
+
+            # data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str]
+            # print("WARNING - Masking of points based on point cloud range is DISABLED.")
+
 
             if 'mm' in data_dict:
-                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
-                # np.save(f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.npy", data_dict['points_mm'+rot_num_id_str])              # (#+#)
-                # mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
-                # data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str][mask]
-                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_mm_check/points_mm{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
-                data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
-                print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
+                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                np.save(f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.npy", data_dict['points_mm'+rot_num_id_str])              # (#+#)
+                
+                
+                mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
+                data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str][mask]
+                print("WARNING - Masking of mm points based on point cloud range is ENABLED.")
+                
+                
+                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask_fake{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                # data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
+                # print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
 
             if data_dict.get('gt_boxes'+rot_num_id_str, None) is not None and config.REMOVE_OUTSIDE_BOXES:
                 mask = box_utils.mask_boxes_outside_range_numpy(
