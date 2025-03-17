@@ -774,7 +774,7 @@ class TEDMHead(RoIHeadTemplate):
 
             if self.training:
                 targets_dict = self.assign_targets(batch_dict, i)
-                targets_dict['aug_param'] = batch_dict['aug_param']
+                #targets_dict['aug_param'] = batch_dict['aug_param']           #+# Disabled augmentation for test dataset_6 as config excluded data augmentation
                 targets_dict['image_shape'] = batch_dict['image_shape']
                 targets_dict['calib'] = batch_dict['calib']
                 batch_dict['rois'] = targets_dict['rois']
