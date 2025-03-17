@@ -38,10 +38,13 @@ class PointFeatureEncoder(object):
             )
 
             if 'mm' in data_dict:
+                # print("WARNING: Disabled points_mm point feature encoder for dataset 6 as transformation PENet is incorrect")            #+# ATTENTION
                 data_dict['points_mm'+rot_num_id], use_lead_xyz = getattr(self, self.point_encoding_config.encoding_type)(
                     data_dict['points_mm'+rot_num_id]
                 )
 
+        print("WARNING: use_lead_xyz is set to True - independent from MM settings!")            
+        use_lead_xyz = True
         data_dict['use_lead_xyz'] = use_lead_xyz
 
         return data_dict

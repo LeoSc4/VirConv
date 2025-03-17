@@ -101,7 +101,6 @@ class DataProcessor(object):
                 # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_mm_check/points_mm{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
                 data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
                 print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
-                pass
 
             if data_dict.get('gt_boxes'+rot_num_id_str, None) is not None and config.REMOVE_OUTSIDE_BOXES:
                 mask = box_utils.mask_boxes_outside_range_numpy(
