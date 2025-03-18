@@ -12,6 +12,9 @@ from .processor.point_feature_encoder import PointFeatureEncoder
 import copy
 import time
 
+from tools.visual_utils.vis_utils_ls import save_point_cloud_as_pcd
+from datetime import datetime
+
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self, dataset_cfg=None, class_names=None, training=True, is_source=True, root_path=None, logger=None,
                  da_train=False):
@@ -250,6 +253,7 @@ class DatasetTemplate(torch_data.Dataset):
                 rot_num_id = str(i)
 
             # swap the scene for augmentation
+            # Perform translation along x axis by translating points and BB on a random basis 
             if self.training and np.random.choice([0,1]):
                 randx = np.random.random()*70.4                     # 
                 randx_1 = 70.4-randx
@@ -272,10 +276,19 @@ class DatasetTemplate(torch_data.Dataset):
                     points_mm = data_dict['points' + rot_num_id][data_dict['points' + rot_num_id][:, -1] == 1]
                     points = data_dict['points'+rot_num_id][data_dict['points'+rot_num_id][:, -1] == 2]
 
+                    #+# Saving individual point clouds as pcd with current time and frame_id in path
+                    # print("NOTE - Saving points and points_mm from prepare_data before input_point_discard")
+                    save_point_cloud_as_pcd(points, f'/workspace/data/prepare_data_{datetime.now().strftime("%%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points{rot_num_id}_before_point_discard.pcd')
+                    save_point_cloud_as_pcd(points_mm, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_before_point_discard.pcd')
+
                     if self.training:
                         points_mm2 = self.input_point_discard(points_mm, rate=self.input_discard_rate)
                     else:
                         points_mm2 = self.input_point_discard(points_mm, bin_num=10, rate=self.input_discard_rate)
+
+                    # print("NOTE - Saving points_mm from prepare_data after input_point_discard")
+                    save_point_cloud_as_pcd(points_mm2, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_after_point_discard.pcd')
+
 
                     data_dict['points_mm'+rot_num_id] = points_mm2
                     data_dict['points'+rot_num_id] = points
