@@ -106,7 +106,7 @@ class Calibration(object):
         :param pts: (N, 3 or 2)
         :return pts_hom: (N, 4 or 3)
         """
-        pts_hom = np.hstack((pts, np.ones((pts.shape[0], 1), dtype=np.float32)))
+        pts_hom = np.hstack((pts, np.ones((pts.shape[0], 1), dtype=np.float32))) # adds a column with 1 to the end of the array
         return pts_hom
 
     def rect_to_lidar(self, pts_rect):
@@ -141,8 +141,8 @@ class Calibration(object):
         """
         pts_rect_hom = self.cart_to_hom(pts_rect)
         pts_2d_hom = np.dot(pts_rect_hom, self.P2.T) #create homogeneous 2D picture coordinates by multiplying points with the projection matrix
-        pts_img = (pts_2d_hom[:, 0:2].T / pts_rect_hom[:, 2]).T  # (N, 2)
-        pts_rect_depth = pts_2d_hom[:, 2] - self.P2.T[3, 2]  # depth in rect camera coord
+        pts_img = (pts_2d_hom[:, 0:2].T / pts_rect_hom[:, 2]).T  # (N, 2)  # divide by z-coordinate to get 2D picture coordinates
+        pts_rect_depth = pts_2d_hom[:, 2] - self.P2.T[3, 2]  # depth in rect camera coord     -> subtracting the depth_offset of the P2 matrix (bottom right value)
         return pts_img, pts_rect_depth
 
     def lidar_to_img(self, pts_lidar):
@@ -161,7 +161,7 @@ class Calibration(object):
         :param depth_rect: (N)
         :return:
         """
-        x = ((u - self.cu) * depth_rect) / self.fu + self.tx
+        x = ((u - self.cu) * depth_rect) / self.fu + self.tx            #
         y = ((v - self.cv) * depth_rect) / self.fv + self.ty
         pts_rect = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1), depth_rect.reshape(-1, 1)), axis=1)
         return pts_rect
