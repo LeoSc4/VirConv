@@ -106,7 +106,7 @@ class DataProcessor(object):
                 print("WARNING - Masking of mm points based on point cloud range is ENABLED.")
                 
                 
-                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask_fake{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
                 # data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
                 # print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
 
@@ -134,7 +134,7 @@ class DataProcessor(object):
                 else:
                     rot_num_id_str = str(rot_num_id)
                 points = data_dict['points'+rot_num_id_str]
-                shuffle_idx = np.random.permutation(points.shape[0])
+                shuffle_idx = np.random.permutation(points.shape[0]) 
                 points = points[shuffle_idx]
                 data_dict['points'+rot_num_id_str] = points
                 if 'mm' in data_dict:
