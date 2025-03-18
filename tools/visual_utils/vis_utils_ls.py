@@ -5,6 +5,171 @@ import open3d as o3d
 
 # vis_utils from LS
 
+def load_kitti_calib(calib_file):
+    """
+    Load KITTI calibration file
+    Args:
+        calib_file: Path to the calibration file
+    Returns:
+        dict: Calibration matrices
+    """
+    calib = {}
+    with open(calib_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                calib[key.strip()] = np.array([float(x) for x in value.split()])
+
+    # Reshape matrices
+    calib['P0'] = calib['P0'].reshape(3, 4)
+    calib['P1'] = calib['P1'].reshape(3, 4)
+    calib['P2'] = calib['P2'].reshape(3, 4)
+    calib['P3'] = calib['P3'].reshape(3, 4)
+    calib['R0_rect'] = calib['R0_rect'].reshape(3, 3)
+    calib['Tr_velo_to_cam'] = calib['Tr_velo_to_cam'].reshape(3, 4)
+    
+    # Create 4x4 transformation matrices for easier handling
+    # Rectification matrix (rectifying camera coordinates)
+    rect_4x4 = np.eye(4)
+    rect_4x4[:3, :3] = calib['R0_rect']
+    
+    # Velodyne to camera transformation (includes both rotation and translation)
+    velo_to_cam_4x4 = np.eye(4)
+    velo_to_cam_4x4[:3, :4] = calib['Tr_velo_to_cam']
+    
+    # Complete transformation: velodyne -> unrectified camera -> rectified camera
+    calib['velo_to_cam_rect'] = rect_4x4 @ velo_to_cam_4x4
+    
+    # Compute inverse transformation: rectified camera -> velodyne
+    calib['cam_rect_to_velo'] = np.linalg.inv(calib['velo_to_cam_rect'])
+    
+    # For debugging, print the transformation matrices
+    print("Velodyne to Camera Rectified:\n", calib['velo_to_cam_rect'])
+    print("\nCamera Rectified to Velodyne:\n", calib['cam_rect_to_velo'])
+    
+    return calib
+
+def load_kitti_labels(label_path):
+    """
+    Load KITTI label file and extract 3D bounding box information
+    Args:
+        label_path: Path to the KITTI label file
+    Returns:
+        bboxes: List of dictionaries containing bbox info for each object
+    """
+    bboxes = []
+    
+    with open(label_path, 'r') as f:
+        lines = f.readlines()
+        
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 15:  # Basic validation
+            continue
+            
+        # KITTI format: type truncated occluded alpha x1 y1 x2 y2 h w l x y z rotation_y [score]
+        obj_type = parts[0]
+        # Skip DontCare labels
+        if obj_type == 'DontCare':
+            continue
+
+        # 2D bounding box parameters
+        u1, v1, u2, v2 = float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])
+
+
+        # 3D bounding box parameters (in camera coordinate system)
+        h, w, l = float(parts[8]), float(parts[9]), float(parts[10])
+        x, y, z = float(parts[11]), float(parts[12]), float(parts[13])
+        rotation_y = float(parts[14])
+
+        bboxes.append({
+            'bbox_2d': [u1, v1, u2, v2],
+            'type': obj_type,
+            'dimensions': [h, w, l],         
+            'location': [x, y, z],    # Center of box                              
+            'rotation_y': rotation_y  # Rotation around Y-axis
+        })
+    
+    return bboxes
+
+def kitti_to_open3d_bbox(bbox_data, calib=None):
+    """
+    Convert KITTI format bounding box to Open3D OrientedBoundingBox
+    Args:
+        bbox_data: Dictionary with KITTI bbox info
+        calib: Optional calibration dictionary to transform to velodyne coordinates
+    Returns:
+        o3d_bbox: Open3D OrientedBoundingBox object
+    """
+    # Extract parameters
+    dimensions = bbox_data['dimensions']  # h,w,l from labels_raw
+    location = bbox_data['location']     # x, y, z (center)
+    rotation_y = bbox_data['rotation_y'] # rotation around y-axis                 
+    obj_type = bbox_data['type']
+    
+    # Create rotation matrix from rotation_y
+    # In KITTI, rotation_y is the rotation around y-axis in camera coordinates
+    R_cam = np.array([
+        [np.cos(rotation_y), 0, np.sin(rotation_y)],
+        [0, 1, 0],
+        [-np.sin(rotation_y), 0, np.cos(rotation_y)]
+    ])
+    
+    # If calibration is provided, transform from camera to velodyne coordinates
+    if calib is not None:
+        # Create a 4x4 transformation matrix in camera coordinates for the bounding box
+        box_cam = np.eye(4)
+        box_cam[:3, :3] = R_cam
+        box_cam[:3, 3] = location
+        
+        # Apply full camera-to-velo transformation (including both rotation and translation)
+        box_velo = calib['cam_rect_to_velo'] @ box_cam
+        
+        # Extract the rotation matrix and translation vector from the resulting 4x4 matrix
+        R_velo = box_velo[:3, :3]
+        t_velo = box_velo[:3, 3]
+
+        # Divide the z value by 2 to match the visualization of bb by using centeroid as location point
+        t_velo[2] /= 2
+
+        # Use the transformed rotation matrix and location
+        R = R_velo       
+
+        location = t_velo
+    else:
+        # Use original values
+        R = R_cam
+    
+    # Create bounding box
+    bbox = o3d.geometry.OrientedBoundingBox()
+    
+    # Set box center
+    bbox.center = np.array(location)
+    
+    # Set box rotation
+    bbox.R = R
+    
+    # Set box extents (need to adjust for Open3D convention)
+    # KITTI: height, width, length
+    # Open3D expects: width, height, length
+    # bbox.extent = np.array([dimensions[2], dimensions[0], dimensions[1]])          #width/ length depending on definition in 
+    bbox.extent = np.array([dimensions[1], dimensions[0], dimensions[2]])          #width/ length depending on definition in 
+    
+
+    # Set color based on object type
+    color_map = {
+        'Car': [1, 0, 0],       # Red
+        'Pedestrian': [0, 1, 0], # Green
+        'Cyclist': [0, 0, 1],    # Blue
+        'Van': [1, 0.5, 0],      # Orange
+        'Truck': [0.5, 0, 0.5]   # Purple
+    }
+    bbox.color = np.array(color_map.get(obj_type, [1, 1, 0]))  # Default yellow
+    
+    return bbox
+
+
 def get_rotation_matrices_from_y(rotation_y):
     """
     Create 3x3 rotation matrices from an array of rotation angles around the y-axis.
