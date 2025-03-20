@@ -37,6 +37,14 @@ def build_optimizer(model, optim_cfg):
 
 
 def build_scheduler(optimizer, total_iters_each_epoch, total_epochs, last_epoch, optim_cfg):
+    
+    #+# Additional fix to solve missing key_error 'initial_lr' in optimizer.param_groups    When training from other CKPT
+        # Add 'initial_lr' to param_groups if missing
+    for param_group in optimizer.param_groups:
+        if 'initial_lr' not in param_group:
+            param_group['initial_lr'] = param_group['lr']
+    
+    
     decay_steps = [x * total_iters_each_epoch for x in optim_cfg.DECAY_STEP_LIST]
     def lr_lbmd(cur_epoch):
         cur_decay = 1
