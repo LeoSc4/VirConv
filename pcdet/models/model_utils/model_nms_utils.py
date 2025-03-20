@@ -39,7 +39,7 @@ def compute_WBF(det_names,
 
     cluster_merged_dict = {}
     cluster_name_dict = {}
-    det_boxes[:, 6] = limit(det_boxes[:, 6])
+    det_boxes[:, 6] = limit(det_boxes[:, 6])    # limit the angles for rot_y to be between -pi and pi
 
     out_boxes = []
     out_scores = []
@@ -74,14 +74,14 @@ def compute_WBF(det_names,
             cluster_score_dict[argmax].append(score)
         elif iou_thresh2 <= max_iou < iou_thresh and score > score_thresh and retain_low:
             if np.max(cluster_score_dict[argmax])-score < 0.2:
-                out_scores.append(score_thresh)
+                out_scores.append(score_thresh) 
                 out_boxes.append(box)
                 out_name.append(name)
         elif 0.03 <= max_iou < iou_thresh2 and retain_low:
             continue
-        elif (not retain_low) and 0.03 <= max_iou < iou_thresh:
+        elif (not retain_low) and 0.03 <= max_iou < iou_thresh:       
             continue
-        else:
+        else:                   # write the box to the output neglecting the iou threshold -> score is set to the threshold
             cluster_id += 1
             cluster_box_dict[cluster_id] = [box]
             cluster_score_dict[cluster_id] = [score]
@@ -128,17 +128,24 @@ def compute_WBF(det_names,
     return out_names, out_scores, out_boxes
 
 def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+    # Filter out redundant BB that overlap
+
     src_box_scores = box_scores
     if score_thresh is not None:
+        # Filter out BB with scores below the threshold
         scores_mask = (box_scores >= score_thresh)
         box_scores = box_scores[scores_mask]
         box_preds = box_preds[scores_mask]
 
     selected = []
+
+    # Apply NMW if Boxes are available 
     if box_scores.shape[0] > 0:
-        box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
-        boxes_for_nms = box_preds[indices]
-        keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
+        box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0])) #select the boxes with the highest scores
+        boxes_for_nms = box_preds[indices] #get the boxes with the highest scores based on top k indexes 
+
+        # Perform the NMS operation specified in the config file (usually NMS_TYPE = 'nms_gpu')
+        keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)( 
                 boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
         )
         selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]

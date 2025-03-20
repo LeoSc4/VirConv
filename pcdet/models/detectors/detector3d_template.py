@@ -206,7 +206,16 @@ class Detector3DTemplate(nn.Module):
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
-            box_preds = batch_dict['batch_box_preds'][batch_mask]
+            print("----------- POST PROCESSING -----------")
+            # print("Batch box preds shape: ", batch_dict['batch_box_preds'].shape)
+            # print("Batch Box predictions: ", batch_dict['batch_box_preds'])
+
+            box_preds = batch_dict['batch_box_preds'][batch_mask] # batch_mask is a boolean mask to select the boxes for the current batch
+
+            # print(" WARNING - Applied batch_mask to box_preds")
+            print("Box preds shape: ", box_preds.shape)
+            # print("Box predictions: ", box_preds)
+
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
@@ -251,21 +260,25 @@ class Detector3DTemplate(nn.Module):
                 final_boxes = torch.cat(pred_boxes, dim=0)
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                if batch_dict.get('has_class_labels', False):
+                if batch_dict.get('has_class_labels', False):   # Checks if the key 'has_class_labels' exists in batch_dict and is true, if it does not exist, it returns False
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
                 else:
                     label_preds = label_preds + 1
 
-                if post_process_cfg.get('WBF', True):
-                    if post_process_cfg.OUTPUT_RAW_SCORE:
+                if post_process_cfg.get('WBF', True):   # Checks if key 'WBF' exists and if value is true, if it does not exist, it returns True
+                    if post_process_cfg.OUTPUT_RAW_SCORE:   # get maximum score from the BB class predictions
                         max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)
 
-                    score_mask = cls_preds > post_process_cfg.SCORE_THRESH
+                    #+# DEBUG - Bounding Boxes get lost here 
+                    # Treshold for predicted BB classification confidence filters out BB with low confidence
+                    score_mask = cls_preds > post_process_cfg.SCORE_THRESH # Checks if the score is greater than the threshold and uses it as boolean mask
                     final_scores = cls_preds[score_mask]
                     final_labels = label_preds[score_mask]
                     final_boxes = box_preds[score_mask]
                 else:
+
+                    # Apply NMS to filter out redundant BB only if WBF is NOT ENABLED
                     selected, selected_scores = model_nms_utils.class_agnostic_nms(
                         box_scores=cls_preds, box_preds=box_preds,
                         nms_config=post_process_cfg.NMS_CONFIG,
@@ -276,6 +289,7 @@ class Detector3DTemplate(nn.Module):
                         max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)
                         selected_scores = max_cls_preds[selected]
 
+                    #
                     final_scores = selected_scores
                     final_labels = label_preds[selected]
                     final_boxes = box_preds[selected]
@@ -293,13 +307,29 @@ class Detector3DTemplate(nn.Module):
                 'pred_labels': final_labels
             }
 
+
+            ### Prepare the record dictionary for the Weighted Box Fusion (WBF) method which is called in kitti_dataset_mm.generate_prediction_dicts ###
+
+            # Check if the Weighted Box Fusion (WBF) method is enabled in the post-processing configuration.
+            # If the key 'WBF' exists in `post_process_cfg` and is set to True, or if it does not exist (default is True), execute the block.
             if post_process_cfg.get('WBF', True):
+                # Add a key-value pair to the record dictionary indicating that WBF is enabled.
                 record_dict.update({'WBF': True})
+
+                # Add the IoU threshold used for WBF to the record dictionary.
+                # If the key 'IoU' exists in `post_process_cfg`, use its value; otherwise, default to 0.85.
                 record_dict.update({'IoU': post_process_cfg.get('IoU', 0.85)})
+
+                # Add a key-value pair to the record dictionary indicating whether Reinforcement Learning (RL) is enabled.
+                # If the key 'RL' exists in `post_process_cfg`, use its value; otherwise, default to False.
                 record_dict.update({'RL': post_process_cfg.get('RL', False)})
+
+                # Add the score threshold used for filtering bounding boxes to the record dictionary.
+                # If the key 'SCORE_THRESH' exists in `post_process_cfg`, use its value; otherwise, default to 0.4.
                 record_dict.update({'SCORE_THRESH': post_process_cfg.get('SCORE_THRESH', 0.4)})
 
             pred_dicts.append(record_dict)
+            print("----------- End of POST PROCESSING -----------")
 
         return pred_dicts, recall_dict
 
