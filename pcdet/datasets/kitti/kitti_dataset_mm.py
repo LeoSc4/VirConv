@@ -367,14 +367,14 @@ class KittiDatasetMM(DatasetTemplate):
                     #Extract each prediction from the dictionary
                     bbox = single_pred_dict['bbox']
                     loc = single_pred_dict['location']
-                    dims = single_pred_dict['dimensions']  # lhw -> hwl
+                    dims = single_pred_dict['dimensions']  # lhw -> hwl                 # Considers the logging to match with the label format and analysis tool 
 
                     # Write prediction details to the file
                     for idx in range(len(bbox)):
                         print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
                               % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
-                                 bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
-                                 dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                 bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],            #2D BBox
+                                 dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],             # 3D location notation: H, W, L
                                  loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
                                  single_pred_dict['score'][idx]), file=f)
 
