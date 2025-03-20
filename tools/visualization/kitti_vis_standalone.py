@@ -56,7 +56,6 @@ def load_kitti_labels(label_path):
         bboxes: List of dictionaries containing bbox info for each object
     """
     bboxes = []
-    
     with open(label_path, 'r') as f:
         lines = f.readlines()
         
@@ -126,8 +125,8 @@ def load_kitti_labels_raw(label_path):
         bboxes.append({
             'bbox_2d': [u1, v1, u2, v2],
             'type': obj_type,
-            'dimensions': [l, h, w],  # KITTI order is l, h, w (length, height, width)
-            'location': [x, y, z],    # Center of box                                           ############ Manual correction
+            'dimensions': [h, w, l],         
+            'location': [x, y, z],    # Center of box                              
             'rotation_y': rotation_y  # Rotation around Y-axis
         })
     
@@ -144,7 +143,7 @@ def kitti_to_open3d_bbox(bbox_data, calib=None):
         o3d_bbox: Open3D OrientedBoundingBox object
     """
     # Extract parameters
-    dimensions = bbox_data['dimensions']  # length(l), height(h), width(w)
+    dimensions = bbox_data['dimensions']  # h,w,l from labels_raw
     location = bbox_data['location']     # x, y, z (center)
     rotation_y = bbox_data['rotation_y'] # rotation around y-axis                 
     # rotation_y = bbox_data['rotation_y'] + np.deg2rad(90) # rotation around y-axis                 ############ Manual correction
@@ -171,9 +170,13 @@ def kitti_to_open3d_bbox(bbox_data, calib=None):
         # Extract the rotation matrix and translation vector from the resulting 4x4 matrix
         R_velo = box_velo[:3, :3]
         t_velo = box_velo[:3, 3]
-        
+         # Divide the z value by 2 to match the visualization
+        t_velo[2] /= 2
+
         # Use the transformed rotation matrix and location
-        R = R_velo
+        R = R_velo       
+
+
         location = t_velo
     else:
         # Use original values
@@ -189,9 +192,11 @@ def kitti_to_open3d_bbox(bbox_data, calib=None):
     bbox.R = R
     
     # Set box extents (need to adjust for Open3D convention)
-    # KITTI: length (x), height (y), width (z)
+    # KITTI: height, width, length
     # Open3D expects: width, height, length
-    bbox.extent = np.array([dimensions[2], dimensions[1], dimensions[0]])
+    bbox.extent = np.array([dimensions[2], dimensions[0], dimensions[1]])          #([dimensions[2], dimensions[1], dimensions[0]])      #original
+    # bbox.extent = np.array([dimensions[1], dimensions[2], dimensions[0]])
+
     
     # Set color based on object type
     color_map = {
