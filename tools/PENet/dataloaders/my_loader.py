@@ -461,6 +461,16 @@ class MyLoader():
 
     def __getitem__(self, item):
         file_idx = self.file_list[item]
+
+
+        # OWN FIX to get the elements from the defined ImageSets instead of common item iter
+        image_sets_test_path = '/workspace/data/kitti/ImageSets/test.txt'
+        # set the file_idx to the explicit element in the image_sets_test_path
+        with open(image_sets_test_path, 'r') as f:
+            lines = f.readlines()
+            print("MyDataLoader: Current retrieved item from ImageSets is: ", lines[item].strip())
+            file_idx = lines[item].strip()
+
         file_image_path = os.path.join(self.root_path, 'image_2', file_idx+'.png')
         file_velo_path = os.path.join(self.root_path, 'velodyne', file_idx+'.bin')
         file_calib = os.path.join(self.root_path, 'calib', file_idx+'.txt')
