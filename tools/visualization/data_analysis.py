@@ -16,7 +16,7 @@ image_analysis = False
 
 if image_analysis:
 
-       image_idx = 2
+       image_idx = 0
        image_path = f"/workspace/data/kitti/training/image_2/{str(image_idx).zfill(6)}.png"
        label_path = f"/workspace/data/kitti/training/label_2/{str(image_idx).zfill(6)}.txt"
 
@@ -26,7 +26,7 @@ if image_analysis:
        
        # Load the labels 
        # label = [type, truncated, occluded, alpha, bbox_left, bbox_top, bbox_right, bbox_bottom, height_3d, width_3d, length_3d, x_3d, y_3d, z_3d, rotation_y, score]
-       labels = load_kitti_labels_raw(label_path)
+       labels = load_kitti_labels(label_path)
 
        # labels is of type [{'bbox_2d': [0.0, ... , ..., ...], 'type': 'Car'}, {'bbox_2d': [0.0, ... , ..., ...]}, {}]
        # bbox_2d_label = labels[0]['bbox_2d']
@@ -53,7 +53,7 @@ if image_analysis:
 
 if point_cloud_analysis: 
        
-       frame_idx = 2
+       frame_idx = 0
        
        # iw_custom_dataset7 (test)files
        file_path = f"/workspace/data/kitti/training/velodyne/{str(frame_idx).zfill(6)}.bin"
@@ -165,9 +165,8 @@ if point_cloud_analysis:
 
                      vis.add_geometry(sphere)
 
-       # Setze Punktgröße
        opt = vis.get_render_option()
-       opt.point_size = 2.0  # Hier kannst du die Punktgröße anpassen
+       opt.point_size = 2.0 
 
        vis.run()
        vis.destroy_window()
