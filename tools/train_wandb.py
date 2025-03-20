@@ -133,7 +133,7 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs,
     )
-    wandb.log({'Training dataset size': len(train_set)})
+    # wandb.log({'Training dataset size': len(train_set)})
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
     if args.sync_bn:
