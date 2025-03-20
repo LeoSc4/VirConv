@@ -97,8 +97,8 @@ class DataProcessor(object):
 
 
             if 'mm' in data_dict:
-                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
-                np.save(f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.npy", data_dict['points_mm'+rot_num_id_str])              # (#+#)
+                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                # np.save(f"/workspace/data/kitti/points_check/points_mm_pre_mask{rot_num_id_str}_{data_dict['frame_id']}.npy", data_dict['points_mm'+rot_num_id_str])              # (#+#)
                 
                 
                 mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
@@ -106,7 +106,7 @@ class DataProcessor(object):
                 print("WARNING - Masking of mm points based on point cloud range is ENABLED.")
                 
                 
-                save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
+                # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)
                 # data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str]
                 # print("WARNING - Masking of mm points based on point cloud range is DISABLED.")
 

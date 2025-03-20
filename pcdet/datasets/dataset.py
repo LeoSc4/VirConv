@@ -278,8 +278,9 @@ class DatasetTemplate(torch_data.Dataset):
 
                     #+# Saving individual point clouds as pcd with current time and frame_id in path
                     # print("NOTE - Saving points and points_mm from prepare_data before input_point_discard")
-                    save_point_cloud_as_pcd(points, f'/workspace/data/prepare_data_{datetime.now().strftime("%%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points{rot_num_id}_before_point_discard.pcd')
-                    save_point_cloud_as_pcd(points_mm, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_before_point_discard.pcd')
+                    
+                    # save_point_cloud_as_pcd(points, f'/workspace/data/prepare_data_{datetime.now().strftime("%%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points{rot_num_id}_before_point_discard.pcd')
+                    # save_point_cloud_as_pcd(points_mm, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_before_point_discard.pcd')
 
                     if self.training:
                         points_mm2 = self.input_point_discard(points_mm, rate=self.input_discard_rate)
@@ -287,7 +288,7 @@ class DatasetTemplate(torch_data.Dataset):
                         points_mm2 = self.input_point_discard(points_mm, bin_num=10, rate=self.input_discard_rate)
 
                     # print("NOTE - Saving points_mm from prepare_data after input_point_discard")
-                    save_point_cloud_as_pcd(points_mm2, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_after_point_discard.pcd')
+                    # save_point_cloud_as_pcd(points_mm2, f'/workspace/data/prepare_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}_frame_{data_dict["frame_id"]}_points_mm{rot_num_id}_after_point_discard.pcd')
 
 
                     data_dict['points_mm'+rot_num_id] = points_mm2
