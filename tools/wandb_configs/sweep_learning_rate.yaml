@@ -1,6 +1,6 @@
 program: train.py  # Change this to the actual script name
 project: VirConv
-name: Sweep_LR_Run_Test
+name: Sweep_constant_LR
 method: bayes  # Can also be 'grid' or 'random'
 metric:
   name: train/loss        # metric that should be optimized
@@ -22,5 +22,9 @@ command:
   - 200
   - --batch_size
   - 1 
+  - --extra_tag 
+  - IW_DS7_000000_ckpt_200EP_Sweep_constant_LR
+  - --ckpt
+  - ../output/pretrained_models/VirConv-T-Paper.pth
   - --sweep_config
   - "${args_json_file}"
