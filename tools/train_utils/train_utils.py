@@ -13,7 +13,7 @@ import wandb
 
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
-                    rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False):
+                    rank, tbar, total_it_each_epoch, dataloader_iter, cur_epoch ,tb_log=None, leave_pbar=False):
     # reset DataLoader Iterator if total number of interactions matches dataset length 
     if total_it_each_epoch == len(train_loader):
         dataloader_iter = iter(train_loader)
@@ -51,7 +51,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
     
         loss, tb_dict, disp_dict = model_func(model, batch) #runs a forward pass to compute loss
         loss = loss/accus # divide the loss by the number of accumulation steps (here = 1)
-        
+
         # Backpropagation
         loss.backward()
 
@@ -78,10 +78,13 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
                 tb_log.add_scalar('train/loss', loss, accumulated_iter)
                 tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
                 
-                # wandb.log({'train/loss': loss, 'meta_data/learning_rate': cur_lr}) #, step=accumulated_iter)
-                # for key, val in tb_dict.items():
-                    # tb_log.add_scalar('train/' + key, val, accumulated_iter)
-                    # wandb.log({'train/' + key: val}) # , step=accumulated_iter)
+                # Log the metric that W&B is optimizing  
+                wandb.log({'train/loss': loss, 'meta_data/learning_rate': cur_lr}, step=cur_epoch+1)     #Set the x-axis to the epoch number (will be displayed as step in WandB)
+                
+                # Log the training visualization to W&B
+                for key, val in tb_dict.items():
+                    tb_log.add_scalar('train/' + key, val, accumulated_iter)
+                    wandb.log({'train/' + key: val} , step=cur_epoch+1)
     if rank == 0:
         pbar.close()
     return accumulated_iter
@@ -119,8 +122,12 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 rank=rank, tbar=tbar, tb_log=tb_log,
                 leave_pbar=(cur_epoch + 1 == total_epochs),
                 total_it_each_epoch=total_it_each_epoch,
-                dataloader_iter=dataloader_iter
+                dataloader_iter=dataloader_iter,
+                cur_epoch=cur_epoch
             )
+
+            # Log the current epoch to wandb
+            wandb.log({'epoch': cur_epoch+1})
 
             # save trained model
             trained_epoch = cur_epoch + 1
@@ -136,11 +143,20 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 # save checkpoint
                 ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d' % trained_epoch)
                 
-                
                 save_checkpoint(
                     checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
                 )
 
+        ## ----- Disabled Artifact logging to prevent exceeding storage limits ----- ##
+                # Log ALL model artifact to WandB   
+                # artifact = wandb.Artifact(name="Model", type="model")
+                # artifact.add_file(str(ckpt_name) + '.pth')
+                # wandb.log_artifact(artifact)
+
+        # Log only the last trained model: 
+        # artifact = wandb.Artifact(name="Model_of_last_EP", type="model")
+        # artifact.add_file(str(ckpt_name) + '.pth')
+        # wandb.log_artifact(artifact)
 def model_state_to_cpu(model_state):
     model_state_cpu = type(model_state)()  # ordered dict
     for key, val in model_state.items():
@@ -176,3 +192,5 @@ def save_checkpoint(state, filename='checkpoint'):
 
     filename = '{}.pth'.format(filename)
     torch.save(state, filename,_use_new_zipfile_serialization=False)
+
+    

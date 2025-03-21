@@ -5,6 +5,8 @@ import glob
 from pathlib import Path
 from test import repeat_eval_ckpt
 import torch
+import numpy as np
+# import torchsummary
 import torch.distributed as dist
 import torch.nn as nn
 from tensorboardX import SummaryWriter
@@ -17,6 +19,9 @@ from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
 import warnings
 warnings.filterwarnings("ignore")
+
+import wandb
+import json
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -42,11 +47,16 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
+    # Add WandB Sweep Config as argument
+    parser.add_argument('--sweep_config', type=str, default=None, help='sweep config file in JSON format')
+
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
     cfg.TAG = Path(args.cfg_file).stem #extracts the filename without the extension (-> Here: the model name)
     cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml' from the arg in terminal (e.g. cfgs/models/kitti/VirConv-T.yaml)
+
+    print("Sweep Config as argument in JSON format:", args.sweep_config)  # Debugging
 
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs, cfg)
@@ -55,6 +65,34 @@ def parse_config():
 
 def main():
     args, cfg = parse_config()
+
+    run_id = wandb.util.generate_id() 
+
+    wandb_run = wandb.init(
+            project='VirConv',
+            name=f"Sweep_constant_LR_Run_{run_id}",
+            # notes= 'The sweep performs hyperparameter search for constant learning rate between 0.0001 and 0.002. It uses 200 epochs and a batch size of 1. Only 1 training sample is used.'
+    )
+    print('*******Initialized Weights and Biasis**************')
+
+    sweep_config = None   # Initialize the sweep_config variable
+    if not args.sweep_config:
+        print("The --sweep_config argument is empty or not provided.")
+    else:
+        print("Path to JSON file in args.sweep_config:", args.sweep_config)
+        with open(args.sweep_config, 'r') as file:
+            sweep_config = json.load(file)
+            print("Sweep Config:", sweep_config) 
+
+        # Get the LR from the sweep configuration 
+        sweep_LR = sweep_config["OPTIMIZATION.LR"] 
+        # Update the LR in the for model cfg 
+        cfg.OPTIMIZATION.LR = sweep_LR
+        print("Updated the OPTIMIZATION.LR in cfg file to:", cfg.OPTIMIZATION.LR)
+
+    # Set the WandB config to the model cfg to store all hyperparameters 
+    wandb.config.update(cfg) 
+    print('*******Overwritten specific hyperparameters in CFG by cfg from W&B Sweep **************')
 
     if args.launcher == 'none':
         dist_train = False
@@ -89,6 +127,18 @@ def main():
 
     # log to file
     logger.info('**********************Start logging**********************')
+
+    logger.info('WandB Run ID: %s' % run_id)
+    logger.info('WandB Project: %s' % wandb.run.project)
+    logger.info('WandB Run Name: %s' % wandb.run.name)
+    logger.info('WandB Run URL: %s' % wandb.run.get_url())
+
+    if sweep_config is not None:
+        logger.info('WandB Sweep Config content: %s' % sweep_config)
+        logger.info('Updated the OPTIMIZATION.LR in cfg file to: %f' % cfg.OPTIMIZATION.LR)
+    else:
+        logger.info('No Sweep Config provided')
+
     gpu_list = os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ.keys() else 'ALL'
     logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
 
@@ -120,6 +170,15 @@ def main():
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
+
+
+    # torchsummary.summary(model, input_size=(1, 297906, 8))
+    # torchsummary.summary(model, [(1, 297906, 8)])
+
+    # pc_000000 = np.load('/workspace/data/kitti/training/velodyne_depth/000000.npy')
+
+    # print(pc_000000.shape)
+
 
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
@@ -205,7 +264,7 @@ def main():
     logger.info('**********************End evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
 
-
+    wandb.run.finish()
 
 
 if __name__ == '__main__':
