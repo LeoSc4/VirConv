@@ -71,7 +71,7 @@ def main():
     wandb_run = wandb.init(
             project='VirConv',
             name=f"Sweep_constant_LR_Run_{run_id}",
-            # notes= 'The sweep performs hyperparameter search for constant learning rate between 0.0001 and 0.002. It uses 200 epochs and a batch size of 1. Only 1 training sample is used.'
+            notes= 'The sweep performs hyperparameter search for constant learning rate between 0.0001 and 0.002. It uses 200 epochs and a batch size of 1. Only 1 training sample is used.'
     )
     print('*******Initialized Weights and Biasis**************')
 

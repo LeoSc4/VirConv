@@ -1,0 +1,26 @@
+program: train.py  # Change this to the actual script name
+project: VirConv
+name: Sweep_LR_Run_Test
+method: bayes  # Can also be 'grid' or 'random'
+metric:
+  name: train/loss        # metric that should be optimized
+  goal: minimize
+
+
+parameters:
+  OPTIMIZATION.LR:
+    distribution: log_uniform_values
+    min: 0.0001
+    max: 0.002
+
+command:
+  - python3
+  - ${program}
+  - --cfg_file
+  - cfgs/models/kitti/VirConv-T-IW-DS-7.yaml
+  - --epochs
+  - 200
+  - --batch_size
+  - 1 
+  - --sweep_config
+  - "${args_json_file}"

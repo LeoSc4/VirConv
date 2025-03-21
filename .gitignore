@@ -19,3 +19,19 @@ pcdet/ops/
 # Temporary log wandb setup for inference
 tools/wandb/
 tools/workspace/inference/
+
+data/kitti/ImageSets/
+data/kitti/ImageSets/val.txt
+data/kitti/ImageSets/train.txt
+data/kitti/ImageSets/test.txt
+
+
+# PENet model
+results/
+tools/zz_testspace/
+
+#3D Bounding Box Analysis for Inference works
+tools/zz_log_3dbbox_analysis/ 
+pcdet/version.py
+
+.vscode/launch.json
