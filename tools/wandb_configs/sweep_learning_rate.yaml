@@ -1,4 +1,4 @@
-program: train.py  # Change this to the actual script name
+program: train.py 
 project: VirConv
 name: Sweep_constant_LR
 method: bayes  # Can also be 'grid' or 'random'
@@ -23,7 +23,7 @@ command:
   - --batch_size
   - 1 
   - --extra_tag 
-  - IW_DS7_000000_ckpt_200EP_Sweep_constant_LR
+  - IW_DS7_000000_ckpt_200EP_
   - --ckpt
   - ../output/pretrained_models/VirConv-T-Paper.pth
   - --sweep_config

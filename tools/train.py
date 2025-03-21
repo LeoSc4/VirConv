@@ -90,6 +90,10 @@ def main():
         cfg.OPTIMIZATION.LR = sweep_LR
         print("Updated the OPTIMIZATION.LR in cfg file to:", cfg.OPTIMIZATION.LR)
 
+        # Add suffix to the extra_tag to identify the sweep run and prevent overwriting
+        args.extra_tag = args.extra_tag + str(wandb.run.name)
+        print("Updated the extra_tag in args to:", args.extra_tag)
+
     # Set the WandB config to the model cfg to store all hyperparameters 
     wandb.config.update(cfg) 
     print('*******Overwritten specific hyperparameters in CFG by cfg from W&B Sweep **************')
