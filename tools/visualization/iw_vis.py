@@ -1,0 +1,150 @@
+import numpy as np
+import open3d as o3d
+
+
+from tools.visual_utils.vis_utils_ls import load_kitti_calib
+
+def load_kitti_labels_in_velo(label_path, calib_path): 
+    """
+    Load KITTI label file and 2D and 3D BBox information in Velodyne CF
+    Args:
+        label_path: Path to the KITTI label file
+        calib_path: Path to the KITTI calibration file
+    Returns:
+        bboxes: List of dictionaries containing bbox info for each object (in Velodyne CF) 
+    """
+    bboxes = []
+
+    with open(label_path, 'r') as f:
+        lines = f.readlines()
+    
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 15:  # Basic validation
+            continue
+            
+        # KITTI format: type truncated occluded alpha x1 y1 x2 y2 h w l x y z rotation_y [score]
+        obj_type = parts[0]
+        # Skip DontCare labels
+        if obj_type == 'DontCare':
+            continue
+    
+
+        # 2D bounding box parameters
+        u1, v1, u2, v2 = float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])
+
+        # 3D bounding box parameters
+        center = np.array([float(parts[11]), float(parts[12]), float(parts[13]), 1.0]) #x, y, z
+        rotation_y = float(parts[14])  # Rotation around Y-axis
+        
+        
+        # Alternative: Direct transformation of 3D bbox to Velodyne coordinate frame 
+        size = [float(parts[9]), float(parts[10]), float(parts[8])]  # width, length, height
+        
+        calib = load_kitti_calib(calib_path)
+        center_velo = calib['cam_rect_to_velo'] @ center                        
+        center_velo = [center_velo[0], center_velo[1], center_velo[2]/2] # + 0.05]   # ADPT
+        
+        rotation_y_velo = np.pi - rotation_y  # Convert from camera frame to lidar frame
+
+        # Store the bbox information
+        bboxes.append({
+            'type': obj_type,
+            'bbox_2d': [u1, v1, u2, v2],
+            'dimensions': size, 
+            'location': center_velo, 
+            'rotation_y': rotation_y_velo,
+            })
+    return bboxes
+
+
+def create_bounding_box(label): 
+    dimensions = np.array(label['dimensions'])
+    location = np.array(label['location'])
+    rotation_y = label['rotation_y']
+    bbox = o3d.geometry.OrientedBoundingBox()
+    bbox.center = location
+    bbox.extent = dimensions
+    rotation_matrix = o3d.geometry.get_rotation_matrix_from_xyz((0, 0, rotation_y))
+    bbox = bbox.rotate(rotation_matrix, center=bbox.center)
+    bbox.color = [0, 1, 0]
+    return bbox
+
+
+def visualize_scene(points, gt_labels=None, predicted_bboxes=None): 
+    """"
+    Visualize the scene with Open3D. Labels must be in the velodyne cf (of points) before creating bounding boxes.
+    """
+    # Setup Open3D point cloud instance
+    points_pcd = o3d.geometry.PointCloud()
+    points_pcd.points = o3d.utility.Vector3dVector(points[:, 0:3])  # use only x,y, z 
+    intensity = points[:, 3]
+    colors = np.zeros((points.shape[0],3))    #ensure that color has the same length as points = [N,3]
+    colors[:, 0], colors[:, 1], colors[:, 2] = intensity, intensity, intensity  # set intensity as color for each point and each channel
+    points_pcd.colors = o3d.utility.Vector3dVector(colors)
+
+    # Draw origin / coordinate frame into 3D 
+    coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=3.0, origin=[0, 0, 0])
+    
+    # Visualize Point Cloud 
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(points_pcd)
+    vis.add_geometry(coordinate_frame)
+
+    if gt_labels is not None: 
+        for label in gt_labels: 
+            # Add gt_labels in green
+            bbox = create_bounding_box(label)
+            bbox.color = [0, 1, 0]
+            vis.add_geometry(bbox)
+
+    if predicted_bboxes is not None:
+        for label in predicted_bboxes: 
+            # Add predicted labels in red
+            bbox = create_bounding_box(label)
+            bbox.color = [1, 0, 0]
+            vis.add_geometry(bbox)
+
+    # Set rendering options
+    opt = vis.get_render_option()
+    opt.point_size = 2.0 
+    vis.run()
+    vis.destroy_window()
+
+def main(points_path, calib_path=None, labels_path=None,iw_custom_data=False, kitti_reference_data=False):
+
+    print("Current evaluation frame: ", points_path)
+    # Load the point cloud 
+    if iw_custom_data:
+        points = np.fromfile(points_path, dtype=np.float32).reshape(-1, 4) # -1 to infer the length of the array
+    
+    elif kitti_reference_data:
+        points = np.load(points_path) 
+
+    if calib_path is not None and labels_path is not None: 
+        gt_labels = load_kitti_labels_in_velo(labels_path, calib_path)
+    
+    visualize_scene(points, gt_labels=gt_labels)
+
+
+if __name__ == '__main__':
+
+    iw_custom_data = True 
+    kitti_reference_data = False
+
+    frame_idx = 0 #5238  #0
+
+    if iw_custom_data:
+        points_path = f"/workspace/data/iw_custom_7_test/training/velodyne/{str(frame_idx).zfill(6)}.bin"      #f"/workspace/data/kitti/training/velodyne/{str(frame_idx).zfill(6)}.bin"
+        calib_path =  f"/workspace/data/iw_custom_7_test/training/calib/{str(frame_idx).zfill(6)}.txt"      #f'/workspace/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
+        labels_path = f"/workspace/data/iw_custom_7_test/training/label_2/{str(frame_idx).zfill(6)}.txt"     #f'/workspace/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
+
+    if kitti_reference_data: 
+        points_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/velodyne_depth/{str(frame_idx).zfill(6)}.npy'
+        calib_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
+        labels_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
+
+    main(points_path, calib_path, labels_path, iw_custom_data, kitti_reference_data)  
+
+
