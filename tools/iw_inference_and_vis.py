@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from pcdet.config import cfg, cfg_from_yaml_file
+from pcdet.config import cfg, log_config_to_file, cfg_from_yaml_file
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
@@ -104,6 +104,10 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     
     logger = common_utils.create_logger(log_file, rank=cfg.LOCAL_RANK)  #Logger is required for .load_params_from_file function
 
+    logger.info('**********************Start logging**********************')
+    log_config_to_file(cfg, logger=logger) #write the complete config to the log file
+
+
     # Build the dataloader for inference
     inference_dataset, inference_dataloader, sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,    #dataset config defined in .yaml of model -> dataset     
@@ -117,8 +121,6 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     model.load_params_from_file(filename=model_ckpt, logger=logger)
     model.cuda()  
     model.eval() # set model in mode for inference
-
-    det_annos = [] #list to store the detected annotations
 
     print("------------ Starting Inference to retrieve results -------------")
     #Forward pass requires the batch_dict. It can be retrieved from the dataloader which is a output of build_dataloader
@@ -140,17 +142,54 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         det_annos_velo = format_annos_for_vis(annos)
         
         # Optional: Enable command line prints
-        cli_prints =  False
+        cli_prints =  True
         if cli_prints == True:
-            vis_utils_ls.cl_prints(batch_dict, pred_dicts, det_annos, i)
+            vis_utils_ls.cl_prints(batch_dict, pred_dicts, annos, i)
 
     print("------------ Starting Visualization -------------")
     for i in range(len(inference_dataset)):
         selected_frame = inference_dataset[i]['frame_id']
-        print("INFO - Visualizing the scene for frame %s" % selected_frame)
-                
+        print("INFO - Visualizing the scene for frame %s" % selected_frame)        
         points = get_points_for_frame(selected_frame, point_cloud_range=point_cloud_range)
         
+        # Log the predicted bounding boxes with the logger 
+        
+        logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
+        logger.info("-> Values are in camera coordinate frame.")
+
+        csv_output_path = f'inference_logs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+
+        for anno in annos: 
+            if anno['frame_id'] == selected_frame:
+                logger.info(f"\n ----Dimensions per BBoxes: \n {anno['dimensions']}")
+                logger.info(f"\n ----Locations per BBoxes: \n {anno['location']}")
+                logger.info(f"\n ----Rotation_y per BBoxes: \n {anno['rotation_y']}")
+
+                # write annos as csv with frame_id in name and the current time 
+                # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
+                with open(csv_output_path, 'w') as f:
+                    
+                    f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_cam, y_cam, z_cam, rotation_y, score\n') #toggle based on usage 
+                    
+                    for bbox_idx in range(len(anno['name'])):
+                        bbox_2d = anno['bbox'][bbox_idx]
+                        dims = anno['dimensions'][bbox_idx]
+                        loc = anno['location'][bbox_idx]
+
+                        f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n' % (
+                                anno['name'][bbox_idx],
+                                anno['truncated'][bbox_idx],
+                                anno['occluded'][bbox_idx],
+                                anno['alpha'][bbox_idx],
+                                bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
+                                dims[1], dims[2], dims[0], # #lhw -> hwl
+                                loc[0], loc[1], loc[2],
+                                anno['rotation_y'][bbox_idx], 
+                                anno['score'][bbox_idx] 
+                        ))
+                                
+                logger.info(f"Predicted Bounding Boxes written to {csv_output_path}")                     
+
         # Extract the pred_boxes for the selected frame
         pred_boxes_for_selected_frame = get_pred_boxes_for_frame(det_annos_velo, selected_frame)
 
@@ -181,10 +220,10 @@ if __name__ == '__main__':
     args = parse_config()
     print(args)
 
-    log_dir = 'workspace/inference' 
+    log_dir = 'inference_logs' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / ('log_inference_%s.txt' % datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+    log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
     model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'     
 
@@ -195,8 +234,10 @@ if __name__ == '__main__':
 
     # define output path for each frame to write the predictions in a file 
     # integrate the checkpoint name in the path to distinguish the results and also the current time
-    bbox_analysis_path = Path(f'/workspace/tools/zz_log_3dbbox_analysis/VirConv-T-Paper.pth/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
-    bbox_analysis_path.mkdir(parents=True, exist_ok=True) 
+    bbox_analysis_path = None #Path(f'/workspace/tools/zz_log_3dbbox_analysis/VirConv-T-Paper.pth/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    
+    if bbox_analysis_path is not None:
+        bbox_analysis_path.mkdir(parents=True, exist_ok=True) 
 
 
     main(log_file, model_ckpt, point_cloud_range, bbox_analysis_path)
