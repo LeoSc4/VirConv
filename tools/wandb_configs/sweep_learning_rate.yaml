@@ -1,6 +1,6 @@
 program: train.py 
 project: VirConv
-name: Sweep_constant_LR
+name: Constant_LR_cube
 method: bayes  # Can also be 'grid' or 'random'
 metric:
   name: train/loss        # metric that should be optimized
@@ -23,7 +23,7 @@ command:
   - --batch_size
   - 1 
   - --extra_tag 
-  - IW_DS7_000000_ckpt_200EP_
+  - IW_DS7_000000_ckpt_200EP_Cube_
   - --ckpt
   - ../output/pretrained_models/VirConv-T-Paper.pth
   - --sweep_config
