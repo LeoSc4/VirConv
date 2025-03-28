@@ -55,8 +55,11 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
             center_velo = [center_velo[0], center_velo[1], center_velo[2]/2] # + 0.05]   ## ADPT
             rotation_y_velo = np.pi - anno['rotation_y'][bbox_idx]  # Convert from camera frame to lidar frame 
             size = anno['dimensions'][bbox_idx, :]  # original format: l, w, h -> see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
-            # change from l, w, h to w, l, h
-            size = [size[1], size[0], size[2]]  # width, length, height ->  see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
+            # change from l, w, h to h, l, w
+            # size = [size[1], size[0], size[2]]  # width, length, height ->  see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
+
+            size = [size[2], size[0], size[1]]  # Test 27.03.25: with good results on iw.visualization 
+                                                # Test with KITTI data necessary !
 
             formatted_boxes_per_frame.append({
                 'type': anno['name'][bbox_idx],
@@ -130,6 +133,11 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             pred_dicts, ret_dict, batch_dict = model(batch_dict)    #forward pass
                                                                     # batch_dict can be neglected for Bounding Box 
         
+
+        print("DEBUG ##################### INFERENCE Done #######################")
+
+        print("----------- Starting GENERATE PREDICTION DICTS -------------")
+        
         # Generate the prediction dictionaries to receive class names and BBox coordinates
         print("INFO - Generating 'annos' as prediction dictionaries in Camera coordinates")  # annos can contain dicts for multiple frames
             # generate_prediction_dicts applies WBF to the predictions
@@ -137,6 +145,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                 batch_dict, pred_dicts, cfg.CLASS_NAMES,
                 output_path=bbox_analysis_path
             ) 
+
 
         print("INFO - Preparing det_annos_velo in Velodyne Coordinates from 'annos' for visualization.") # see load_kitti_labels_in_velo in iw_vis.py        
         det_annos_velo = format_annos_for_vis(annos)
@@ -157,7 +166,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
         logger.info("-> Values are in camera coordinate frame.")
 
-        csv_output_path = f'inference_logs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+        csv_output_path = f'inference_logs/kitti_data/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
 
         for anno in annos: 
             if anno['frame_id'] == selected_frame:
@@ -212,24 +221,55 @@ if __name__ == '__main__':
     # Mock command-line arguments 
     sys.argv = [
     'iw_inference_and_vis.py',
-    # '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',        #for iw_custom_data
-    '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T.yaml',                  #for kitti_reference_data
+    # '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',            #for iw_custom_data
+    '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
     '--batch_size', '1',
     '--workers', '0'
     ]
     args = parse_config()
     print(args)
 
-    log_dir = 'inference_logs' 
+    log_dir = 'inference_logs/kitti_data' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
-    model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'     
+    # PAPER VirConv with KITTI Data
+    model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
+
+    # model_ckpt = '../output/checkpoint_epoch_200.pth'  
+
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test/ckpt/checkpoint_epoch_99.pth'
+
+    # Changed .yaml bottom heights of the anchors
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights/ckpt/checkpoint_epoch_47.pth'
+
+
+    # Changed bottom heights, Learning rate= 0.0004
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low/ckpt/checkpoint_epoch_84.pth'
+
+
+    # Scle1074: HWL bei Anchor (0.5, 0.9, 1.3)
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-HLW/ckpt/checkpoint_epoch_70.pth'
+
+    # Scle1074
+    # model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-LWH/ckpt/checkpoint_epoch_100.pth'
+
+    # Cube0.5
+    # model_ckpt='/workspace/output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5/ckpt/checkpoint_epoch_100.pth'
+
+    #Cube0.5 500 EP:      ---->>>>>>> WORKS visually well after changing format_pred_for_vis in iw_inference_and_vis!
+    ##### LATEST Well performing one
+    # model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5_500/ckpt/checkpoint_epoch_500.pth'
+
+    #HLW new config with 200 EP 
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-HLW_NEW_200/ckpt/checkpoint_epoch_198.pth'
 
     # Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]
-        # KITTI = [0, -40, -3, 70.4, 40, 1] 
-    point_cloud_range = [0, -40, -3, 70.4, 40, 1]          
+        # KITTI = [0, -40, -3, 70.4, 40, 1]
+        # IW_Custom = [0, -16, -3, 16, 16, 1] 
+
+    point_cloud_range = [0, -40, -3, 70.4, 40, 1]       
 
 
     # define output path for each frame to write the predictions in a file 
