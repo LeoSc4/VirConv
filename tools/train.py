@@ -6,7 +6,6 @@ from pathlib import Path
 from test import repeat_eval_ckpt
 import torch
 import numpy as np
-# import torchsummary
 import torch.distributed as dist
 import torch.nn as nn
 from tensorboardX import SummaryWriter
@@ -69,9 +68,10 @@ def main():
     run_id = wandb.util.generate_id() 
 
     wandb_run = wandb.init(
-            project='VirConv',
+            project='VirConv',  
             name=f"Sweep_constant_LR_Run_{run_id}",
-            notes= 'The sweep performs hyperparameter search for constant learning rate between 0.0001 and 0.002. It uses 200 epochs and a batch size of 1. Only 1 training sample is used.'
+            entity='idealworks-ml',   #ADTCreation #idealworks-ml
+            notes= 'The sweep performs hyperparameter search for constant learning rate between 0.0001 and 0.002. It uses 200 epochs and a batch size of 1. Only 1 training sample is used. A cube anchor of 0.5 is used'
     )
     print('*******Initialized Weights and Biasis**************')
 
@@ -89,6 +89,16 @@ def main():
         # Update the LR in the for model cfg 
         cfg.OPTIMIZATION.LR = sweep_LR
         print("Updated the OPTIMIZATION.LR in cfg file to:", cfg.OPTIMIZATION.LR)
+
+        if 'ANCHOR_SIZE_X' in sweep_config and 'ANCHOR_SIZE_Y' in sweep_config and 'ANCHOR_SIZE_Z' in sweep_config:
+            sweep_Anchor_x = sweep_config['ANCHOR_SIZE_X']
+            sweep_Anchor_y = sweep_config['ANCHOR_SIZE_Y']
+            sweep_Anchor_z = sweep_config['ANCHOR_SIZE_Z']
+            cfg.MODEL.DENSE_HEAD.ANCHOR_GENERATOR_CONFIG[0]['anchor_sizes'] = [sweep_Anchor_x, sweep_Anchor_y, sweep_Anchor_z]
+            print("Updated the ANCHOR_GENERATOR_CONFIG in cfg file to:", cfg.MODEL.DENSE_HEAD.ANCHOR_GENERATOR_CONFIG[0]['anchor_sizes'])
+        else:
+            print("No Anchor size provided in the sweep config. Using default values from the cfg file.")
+
 
         # Add suffix to the extra_tag to identify the sweep run and prevent overwriting
         args.extra_tag = args.extra_tag + str(wandb.run.name)
@@ -174,15 +184,6 @@ def main():
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
-
-
-    # torchsummary.summary(model, input_size=(1, 297906, 8))
-    # torchsummary.summary(model, [(1, 297906, 8)])
-
-    # pc_000000 = np.load('/workspace/data/kitti/training/velodyne_depth/000000.npy')
-
-    # print(pc_000000.shape)
-
 
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
