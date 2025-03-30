@@ -90,7 +90,7 @@ class DataProcessor(object):
             
             ##### Points get masked out if they are outside the range -> possible cause for missing points ######
             data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str][mask]
-            print("WARNING - Masking of points based on point cloud range is ENABLED.")
+            # print("WARNING - Masking of points based on point cloud range is ENABLED.")
 
             # data_dict['points'+rot_num_id_str] = data_dict['points'+rot_num_id_str]
             # print("WARNING - Masking of points based on point cloud range is DISABLED.")
@@ -103,7 +103,7 @@ class DataProcessor(object):
                 
                 mask = common_utils.mask_points_by_range(data_dict['points_mm'+rot_num_id_str], self.point_cloud_range)
                 data_dict['points_mm'+rot_num_id_str] = data_dict['points_mm'+rot_num_id_str][mask]
-                print("WARNING - Masking of mm points based on point cloud range is ENABLED.")
+                # print("WARNING - Masking of mm points based on point cloud range is ENABLED.")
                 
                 
                 # save_point_cloud_as_pcd(data_dict['points_mm'+rot_num_id_str], f"/workspace/data/kitti/points_check/points_mm_post_mask{rot_num_id_str}_{data_dict['frame_id']}.pcd")              # (#+#)

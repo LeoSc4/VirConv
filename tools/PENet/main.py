@@ -320,8 +320,8 @@ def main():
     print("(#+#) Starting the main.py (#+#)")
 
     
-    sys.stdout = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')   
-    sys.stderr = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')
+    # sys.stdout = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')   
+    # sys.stderr = open(os.path.join('results', 'log', time.strftime("%Y%m%d-%H%M%S") + '_pipeline_log_inspection.txt'), 'w')
 
     if args.evaluate:       # is used with default command as evaluate = 'pe.pth.tar'
         args_new = args

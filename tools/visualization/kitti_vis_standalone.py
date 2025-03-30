@@ -7,7 +7,7 @@ def load_kitti_calib(calib_file):
     Load KITTI calibration file
     Args:
         calib_file: Path to the calibration file
-    Returns:qqqqqqqq
+    Returns:
         dict: Calibration matrices
     """
     calib = {}

@@ -47,12 +47,12 @@ def load_kitti_calib(calib_file):
     calib['cam_rect_to_velo'] = np.linalg.inv(calib['velo_to_cam_rect'])
     
     # For debugging, print the transformation matrices
-    print("Velodyne to Camera Rectified:\n", calib['velo_to_cam_rect'])
-    print("\nCamera Rectified to Velodyne:\n", calib['cam_rect_to_velo'])
+    # print("Velodyne to Camera Rectified:\n", calib['velo_to_cam_rect'])
+    # print("\nCamera Rectified to Velodyne:\n", calib['cam_rect_to_velo'])
     
     return calib
 
-def load_kitti_labels(label_path):
+def load_kitti_labels(label_path):       #OLD since 24.03.2025
     """
     Load KITTI label file and extract 3D bounding box information
     Args:
@@ -372,18 +372,6 @@ def cl_prints(batch_dict, pred_dicts, det_annos, i):
     #print the number of the first used element of the batch dict 
     print("Current iteration: ", i)
     print("Currently used batch element ", batch_dict['frame_id'])
-    
-    print("--------- PREDICTION_DICT ---------")
-    # print the name of the first prediction
-    print("Predicted label: ", pred_dicts[0]['pred_labels']) # print the pred_labels of the prediction
-    print("Predicted bounding box: \n", pred_dicts[0]['pred_boxes']) # print the pred_boxes of the prediction
-    print("Predicted score = confidence: ", pred_dicts[0]['pred_scores']) # print the pred_scores of the prediction
-    
-    print("-------------- ANNOS --------------")
-    # Print the class of the first frame 
-    print(f"Class of the {i} frame: ", det_annos[i]['name'])
-    # Print the score of the first frame
-    print(f"Score of the {i} frame: ", det_annos[i]['score'])
 
     #2D Bounding Box
     # print("--------- 2D Bounding Box ---------")
@@ -399,10 +387,25 @@ def cl_prints(batch_dict, pred_dicts, det_annos, i):
     #     print("-- Bottom pixel: ", det_annos[i]['bbox'][0][3])
     # else:
     #     print("2D BB in the image: Not available")
+    
+    print("--------- PREDICTION_DICT ---------")
+    # print the name of the first prediction
+
+    print_pred_dict = False
+    if print_pred_dict: 
+        print("Predicted label: ", pred_dicts[0]['pred_labels']) # print the pred_labels of the prediction
+        print("Predicted bounding box: \n", pred_dicts[0]['pred_boxes']) # print the pred_boxes of the prediction
+        print("Predicted score = confidence: ", pred_dicts[0]['pred_scores']) # print the pred_scores of the prediction
+    
+    print("-------------- ANNOS --------------")
+    # Print the class of the first frame 
+    print(f"Class of the {i} frame: ", det_annos[i]['name'])
+    # Print the score of the first frame
+    print(f"Score of the {i} frame: ", det_annos[i]['score'])
 
     # 3D Bounding Box
     if len(det_annos[i]['dimensions']) > 0:
-        print("-------- 3D Bounding Box ---------")
+        print("-- 3D Bounding Box for Anno --")
         print("Dimensions of the first 3D BB in frame in meters:")
         print("--Height: ", det_annos[i]['dimensions'][0][0]) # last [0] due to the possibility for multiple detected BB with Height, Width, Length each
         print("--Width: ", det_annos[i]['dimensions'][0][1])
@@ -410,6 +413,7 @@ def cl_prints(batch_dict, pred_dicts, det_annos, i):
 
         ## Print the location of the 3D Bounding Box
         print("Location of the 3D BB in camera coordinates in meters: \n", det_annos[i]['location'])
+        print("Dimensions of the 3D BB in camera coordinates in meters: \n", det_annos[i]['dimensions'])
         ## Print the rotation around y-axis in camera coordinates of the 3D Bounding Box
         print("Rotation around y-axis in camera coordinates of the 3D BB in radians: ", det_annos[i]['rotation_y'])
 
