@@ -162,8 +162,7 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                # 'anchor_sizes': [[0.5, 0.9, 1.3]], # Idea: Länge = 0.9, Breite = 1.3, Höhe = 0.5         
-                'anchor_sizes': [[0.5, 0.5, 0.5]], # Idea: Länge = 0.9, Breite = 1.3, Höhe = 0.5         #[[3.9, 1.6, 1.56]],
+                'anchor_sizes': [[0.5, 0.5, 0.5]], # Länge = 0.9, Breite = 1.3, Höhe = 0.5         #[[3.9, 1.6, 1.56]],
                                                    # Same Format as GT Label: [H, W, L] as they are compared in anchor target generator
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.4], # [-1.78],                #otherwise the anchors are starting below the ground
@@ -317,7 +316,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.4 #0.3 #0.0 #0.4     -> upgrade to 0.2 to get the other one out 
+        SCORE_THRESH: 0.3 #0.3 #0.0 #0.4     -> upgrade to 0.2 to get the other one out 
         OUTPUT_RAW_SCORE: False
         EVAL_METRIC: kitti
         IoU: 0.9 #0.1 #0.9
