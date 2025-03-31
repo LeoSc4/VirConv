@@ -15,14 +15,23 @@ python3 python3-pip python3-dev git \
 # Set Python3 as default 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# Install PyTorch 1.13.1 mit CUDA 11.7
-RUN pip3 install --no-cache-dir torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
-
-# ARG CACHE_BUST=1
-
 # Set non-interactive mode to avoid timezone prompts
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6
+
+ARG CACHE_BUST=1
+
+# Setup a non-root user
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd --g ${GID} usergroup && \
+    useradd -m -u ${UID} -g usergroup -s /bin/bash user
+
+USER user
+
+# Install PyTorch 1.13.1 mit CUDA 11.7
+RUN pip3 install --no-cache-dir torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
 
 
 # Install dependencies
@@ -33,7 +42,7 @@ RUN pip install --user -r requirements.txt
 # To access Tensorboard - TO BE TESTED -> This command works inside: export PATH=$HOME/.local/bin:$PATH
 # ENV PATH="/root/.local/bin:${PATH}"
 
-RUN pip install wandb 
+RUN pip install --user wandb 
 # RUN wandb login      -> log in after starting the docker by using the API key
 
 # Resolve ownership conflicts when using mounted volumes and user permissions

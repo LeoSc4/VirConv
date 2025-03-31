@@ -43,7 +43,7 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
     for anno in annos: 
 
         # Get the calib for the selected frame 
-        calib_path_for_selected_frame = f"/workspace/data/kitti/testing/calib/{str(anno['frame_id']).zfill(6)}.txt"
+        calib_path_for_selected_frame = f"/home/user/workspace/data/kitti/testing/calib/{str(anno['frame_id']).zfill(6)}.txt"
         calib_for_selected_frame = load_kitti_calib(calib_path_for_selected_frame)
 
         formatted_boxes_per_frame = []
@@ -87,7 +87,7 @@ def get_points_for_frame(selected_frame, point_cloud_range=None):
     # selected frame e.g. '000000'
     # point_cloud_range = [x_min, y_min, z_min, x_max, y_max, z_max]
 
-    points_path = f"/workspace/data/kitti/testing/velodyne/{str(selected_frame).zfill(6)}.bin"
+    points_path = f"../data/kitti/testing/velodyne/{str(selected_frame).zfill(6)}.bin"
     points= np.fromfile(points_path, dtype=np.float32).reshape(-1, 4)   #load from bin in testing
 
     if point_cloud_range is not None:
@@ -166,7 +166,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
         logger.info("-> Values are in camera coordinate frame.")
 
-        csv_output_path = f'inference_logs/kitti_data/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+        csv_output_path = f'inference_logs/iw_data7/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
 
         for anno in annos: 
             if anno['frame_id'] == selected_frame:
@@ -205,8 +205,8 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         visualize_gt = True 
         gt_labels = None
         if visualize_gt:
-            labels_path = f"/workspace/data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"
-            calib_path = f"/workspace/data/kitti/testing/calib/{str(selected_frame).zfill(6)}.txt"
+            labels_path = f"/home/user/workspace/data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"
+            calib_path = f"/home/user/workspace/data/kitti/testing/calib/{str(selected_frame).zfill(6)}.txt"
             gt_labels = load_kitti_labels_in_velo(labels_path, calib_path)
 
         visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame) #gt_labels=inference_dataset
@@ -216,59 +216,40 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
 if __name__ == '__main__':
 
     # Set current working directory 
-    os.chdir('/workspace/tools') 
+    # os.chdir('/workspace/tools') 
 
     # Mock command-line arguments 
     sys.argv = [
     'iw_inference_and_vis.py',
-    # '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',            #for iw_custom_data
-    '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
+    '--cfg_file', '/home/user/workspace/tools/cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',            #for iw_custom_data
+    # '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
     '--batch_size', '1',
     '--workers', '0'
     ]
     args = parse_config()
     print(args)
 
-    log_dir = 'inference_logs/kitti_data' 
+    ##### Change if you use kitti/ iw_data7
+    log_dir = 'inference_logs/iw_data7' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
     # PAPER VirConv with KITTI Data
-    model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
+    # model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
 
     # model_ckpt = '../output/checkpoint_epoch_200.pth'  
 
-    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test/ckpt/checkpoint_epoch_99.pth'
-
-    # Changed .yaml bottom heights of the anchors
-    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights/ckpt/checkpoint_epoch_47.pth'
-
-
-    # Changed bottom heights, Learning rate= 0.0004
-    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low/ckpt/checkpoint_epoch_84.pth'
-
-
-    # Scle1074: HWL bei Anchor (0.5, 0.9, 1.3)
-    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-HLW/ckpt/checkpoint_epoch_70.pth'
-
-    # Scle1074
-    # model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-LWH/ckpt/checkpoint_epoch_100.pth'
-
-    # Cube0.5
-    # model_ckpt='/workspace/output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5/ckpt/checkpoint_epoch_100.pth'
 
     #Cube0.5 500 EP:      ---->>>>>>> WORKS visually well after changing format_pred_for_vis in iw_inference_and_vis!
-    ##### LATEST Well performing one
-    # model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5_500/ckpt/checkpoint_epoch_500.pth'
+    ##### LATEST Well performing one: WBF False, IoU 0.9, Score_Thresh = 0.3, RL True, NMS_Thresh = 0.1
+    ##### https://wandb.ai/ADTCreation/VirConv/runs/d4bi6sbf?nw=nwuserscle1074
+    model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5_500/ckpt/checkpoint_epoch_500.pth'
 
-    #HLW new config with 200 EP 
-    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-HLW_NEW_200/ckpt/checkpoint_epoch_198.pth'
 
-    # Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]
+    ### Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]
         # KITTI = [0, -40, -3, 70.4, 40, 1]
         # IW_Custom = [0, -16, -3, 16, 16, 1] 
-
     point_cloud_range = [0, -40, -3, 70.4, 40, 1]       
 
 
