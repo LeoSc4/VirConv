@@ -43,7 +43,7 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
     for anno in annos: 
 
         # Get the calib for the selected frame 
-        calib_path_for_selected_frame = f"/home/user/workspace/data/kitti/testing/calib/{str(anno['frame_id']).zfill(6)}.txt"
+        calib_path_for_selected_frame = f"../data/kitti/testing/calib/{str(anno['frame_id']).zfill(6)}.txt"
         calib_for_selected_frame = load_kitti_calib(calib_path_for_selected_frame)
 
         formatted_boxes_per_frame = []
@@ -79,8 +79,8 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
 def get_pred_boxes_for_frame(det_annos_velo, selected_frame):
 
     for frame_data in det_annos_velo:
-        if frame_data['frame_id'] == selected_frame:
-            return frame_data['bboxes']  # Return the bounding boxes for the selected frame
+        if frame_data[0]['frame_id'] == selected_frame:
+            return frame_data[0]['bboxes']  # Return the bounding boxes for the selected frame
     return []  # Return an empty list if the frame_id is not found
 
 def get_points_for_frame(selected_frame, point_cloud_range=None):
@@ -125,6 +125,9 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     model.cuda()  
     model.eval() # set model in mode for inference
 
+    annos_for_all_frames = [] 
+    det_annos_velo_for_all_frames = []
+
     print("------------ Starting Inference to retrieve results -------------")
     #Forward pass requires the batch_dict. It can be retrieved from the dataloader which is a output of build_dataloader
     for i, batch_dict in enumerate(inference_dataloader):
@@ -145,13 +148,15 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                 batch_dict, pred_dicts, cfg.CLASS_NAMES,
                 output_path=bbox_analysis_path
             ) 
-
-
+        
         print("INFO - Preparing det_annos_velo in Velodyne Coordinates from 'annos' for visualization.") # see load_kitti_labels_in_velo in iw_vis.py        
         det_annos_velo = format_annos_for_vis(annos)
         
+        annos_for_all_frames.append(annos) #append the annos for all frames to the list
+        det_annos_velo_for_all_frames.append(det_annos_velo) #append the det_annos_velo for all frames to the list
+
         # Optional: Enable command line prints
-        cli_prints =  True
+        cli_prints =  False
         if cli_prints == True:
             vis_utils_ls.cl_prints(batch_dict, pred_dicts, annos, i)
 
@@ -166,13 +171,13 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
         logger.info("-> Values are in camera coordinate frame.")
 
-        csv_output_path = f'inference_logs/iw_data7/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+        csv_output_path = f'inference_logs/iw_data7/sweep-cLR_AnchorLWH_25Samples/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
 
-        for anno in annos: 
-            if anno['frame_id'] == selected_frame:
-                logger.info(f"\n ----Dimensions per BBoxes: \n {anno['dimensions']}")
-                logger.info(f"\n ----Locations per BBoxes: \n {anno['location']}")
-                logger.info(f"\n ----Rotation_y per BBoxes: \n {anno['rotation_y']}")
+        for anno in annos_for_all_frames: 
+            if anno[0]['frame_id'] == selected_frame:
+                logger.info(f"\n ----Dimensions per BBoxes: \n {anno[0]['dimensions']}")
+                logger.info(f"\n ----Locations per BBoxes: \n {anno[0]['location']}")
+                logger.info(f"\n ----Rotation_y per BBoxes: \n {anno[0]['rotation_y']}")
 
                 # write annos as csv with frame_id in name and the current time 
                 # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
@@ -180,82 +185,81 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                     
                     f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_cam, y_cam, z_cam, rotation_y, score\n') #toggle based on usage 
                     
-                    for bbox_idx in range(len(anno['name'])):
-                        bbox_2d = anno['bbox'][bbox_idx]
-                        dims = anno['dimensions'][bbox_idx]
-                        loc = anno['location'][bbox_idx]
+                    for bbox_idx in range(len(anno[0]['name'])):
+                        bbox_2d = anno[0]['bbox'][bbox_idx]
+                        dims = anno[0]['dimensions'][bbox_idx]
+                        loc = anno[0]['location'][bbox_idx]
 
                         f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n' % (
-                                anno['name'][bbox_idx],
-                                anno['truncated'][bbox_idx],
-                                anno['occluded'][bbox_idx],
-                                anno['alpha'][bbox_idx],
+                                anno[0]['name'][bbox_idx],
+                                anno[0]['truncated'][bbox_idx],
+                                anno[0]['occluded'][bbox_idx],
+                                anno[0]['alpha'][bbox_idx],
                                 bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
                                 dims[1], dims[2], dims[0], # #lhw -> hwl
                                 loc[0], loc[1], loc[2],
-                                anno['rotation_y'][bbox_idx], 
-                                anno['score'][bbox_idx] 
+                                anno[0]['rotation_y'][bbox_idx], 
+                                anno[0]['score'][bbox_idx] 
                         ))
                                 
                 logger.info(f"Predicted Bounding Boxes written to {csv_output_path}")                     
 
         # Extract the pred_boxes for the selected frame
-        pred_boxes_for_selected_frame = get_pred_boxes_for_frame(det_annos_velo, selected_frame)
+        pred_boxes_for_selected_frame = get_pred_boxes_for_frame(det_annos_velo_for_all_frames, selected_frame)
 
         visualize_gt = True 
         gt_labels = None
         if visualize_gt:
-            labels_path = f"/home/user/workspace/data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"
-            calib_path = f"/home/user/workspace/data/kitti/testing/calib/{str(selected_frame).zfill(6)}.txt"
-            gt_labels = load_kitti_labels_in_velo(labels_path, calib_path)
+            # execute only if gt_labels are available, otherwise skip
+            if os.path.exists(f"../data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"):
+                labels_path = f"../data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"
+                calib_path = f"../data/kitti/testing/calib/{str(selected_frame).zfill(6)}.txt"
+                gt_labels = load_kitti_labels_in_velo(labels_path, calib_path)
+            else:
+                logger.warning(f"Ground truth labels not found for frame {selected_frame}. Skipping visualization of ground truth.")
 
-        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame) #gt_labels=inference_dataset
+        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame)
     
 
 
 if __name__ == '__main__':
 
     # Set current working directory 
-    # os.chdir('/workspace/tools') 
+    # os.chdir('/home/user/workspace/tools') 
 
     # Mock command-line arguments 
     sys.argv = [
     'iw_inference_and_vis.py',
-    '--cfg_file', '/home/user/workspace/tools/cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',            #for iw_custom_data
-    # '--cfg_file', '/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
+    '--cfg_file', 'cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',                                               #for iw_custom_data
+    # '--cfg_file', '/home/user/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
     '--batch_size', '1',
     '--workers', '0'
     ]
     args = parse_config()
     print(args)
 
-    ##### Change if you use kitti/ iw_data7
-    log_dir = 'inference_logs/iw_data7' 
+    ##### Change if you use kitti/ iw_data
+    log_dir = 'inference_logs/iw_data7/sweep-cLR_AnchorLWH_25Samples' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
     # PAPER VirConv with KITTI Data
     # model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
-
-    # model_ckpt = '../output/checkpoint_epoch_200.pth'  
-
-
-    #Cube0.5 500 EP:      ---->>>>>>> WORKS visually well after changing format_pred_for_vis in iw_inference_and_vis!
-    ##### LATEST Well performing one: WBF False, IoU 0.9, Score_Thresh = 0.3, RL True, NMS_Thresh = 0.1
-    ##### https://wandb.ai/ADTCreation/VirConv/runs/d4bi6sbf?nw=nwuserscle1074
-    model_ckpt='../output/models/kitti/VirConv-T-IW-DS-7/IW_DS7_Only_000000_CKPT_Anchor_Test-Bottom_Heights-LR_low-Cube0.5_500/ckpt/checkpoint_epoch_500.pth'
-
+    
+    ########## Sweep cLR_AnchorLWH_25Samples - https://wandb.ai/idealworks-ml/VirConv/sweeps/g9ma6tl5/workspace?nw=nwuseredgeai ################
+    ## Best result at epoch 200           https://wandb.ai/idealworks-ml/VirConv/runs/nvpgcbej/overview
+    # Check 200 (1.002 loss) 
+    model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/Sweep-cLR_AnchorLWH_25Samples/IW_DS7_000000_ckpt_200EP_AnchorLWH_BS4_25SSweep_cLR_AchLWH_S25_0jyyn3gt/ckpt/checkpoint_epoch_200.pth'
 
     ### Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]
-        # KITTI = [0, -40, -3, 70.4, 40, 1]
-        # IW_Custom = [0, -16, -3, 16, 16, 1] 
-    point_cloud_range = [0, -40, -3, 70.4, 40, 1]       
-
+    # KITTI = [0, -40, -3, 70.4, 40, 1]
+    # IW_Custom = [0, -16, -3, 16, 16, 1] 
+    point_cloud_range = [0, -16, -3, 16, 16, 1]    
 
     # define output path for each frame to write the predictions in a file 
     # integrate the checkpoint name in the path to distinguish the results and also the current time
-    bbox_analysis_path = None #Path(f'/workspace/tools/zz_log_3dbbox_analysis/VirConv-T-Paper.pth/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    bbox_analysis_path = None #Path(f'/home/user/workspace/tools/zz_log_3dbbox_analysis/VirConv-T-Paper.pth/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
     
     if bbox_analysis_path is not None:
         bbox_analysis_path.mkdir(parents=True, exist_ok=True) 
