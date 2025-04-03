@@ -866,6 +866,7 @@ class TEDMHead(RoIHeadTemplate):
             trans_param = batch_dict['transform_param']
             self.rot_num = trans_param.shape[1]
 
+        # print("DEBUG - Setting up proposal_layer in TEDMHead - This is default")
         targets_dict = self.proposal_layer(
             batch_dict, nms_config=self.model_cfg.NMS_CONFIG['TRAIN' if self.training else 'TEST']
         )

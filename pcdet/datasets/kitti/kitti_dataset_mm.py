@@ -309,7 +309,14 @@ class KittiDatasetMM(DatasetTemplate):
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
 
+            print("############# AFTER Forward Pass - In GENERATE_PREDICTION_DICTS #############")
+
             if 'WBF' in box_dict:
+                print("DEBUG - Computing WBF with the following settings:")
+                # print("DEBUG - IoU: ", box_dict['IoU'])
+                # print("DEBUG - Retain Low: ", box_dict['RL'])
+                # print("DEBUG - Score Threshold: ", box_dict['SCORE_THRESH'])
+
                 pred_labels,pred_scores,pred_boxes = model_nms_utils.compute_WBF(pred_labels,
                                                                                  pred_scores,
                                                                                  pred_boxes,
@@ -325,7 +332,7 @@ class KittiDatasetMM(DatasetTemplate):
 
             calib = batch_dict['calib'][batch_index]
             image_shape = batch_dict['image_shape'][batch_index]
-            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
+            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)  # Convert to Camera coordinate system
             pred_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
                 pred_boxes_camera, calib, image_shape=image_shape
             )
@@ -388,7 +395,7 @@ class KittiDatasetMM(DatasetTemplate):
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.kitti_infos]
-        ap_result_str, ap_dict = kitti_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names)
+        ap_result_str, ap_dict = kitti_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names)      ### Evaluation
 
         return ap_result_str, ap_dict
 

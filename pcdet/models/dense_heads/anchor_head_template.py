@@ -124,11 +124,13 @@ class AnchorHeadTemplate(nn.Module):
             box_preds = batch_box_preds[batch_mask]
             cls_preds = batch_cls_preds[batch_mask]
 
-            cur_roi_scores, cur_roi_labels = torch.max(cls_preds, dim=1)
+            cur_roi_scores, cur_roi_labels = torch.max(cls_preds, dim=1) #get the highest score and the corresponding class label
 
             if nms_config.MULTI_CLASSES_NMS:
                 raise NotImplementedError
             else:
+                #+# Non Maximum Suppression
+                print('DEBUG - in AnchorHead Proposal Layer')
                 selected, selected_scores = class_agnostic_nms(
                     box_scores=cur_roi_scores, box_preds=box_preds, nms_config=nms_config
                 )

@@ -161,6 +161,8 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             data_dict['batch_box_preds'] = batch_box_preds
             data_dict['cls_preds_normalized'] = False
 
+        # print('DEBUG - In Anchor_Head_Single - NMS_CONFIG in Yaml is: ', self.model_cfg.get('NMS_CONFIG', 'DEFAULT VALUE as NMS_CONFIG not found in Yaml'))
+        # print('Not setting up proposal layer if NMS_CONFIG is not found')
         if self.model_cfg.get('NMS_CONFIG', None) is not None:
             self.proposal_layer(
                 data_dict, nms_config=self.model_cfg.NMS_CONFIG['TRAIN' if self.training else 'TEST']

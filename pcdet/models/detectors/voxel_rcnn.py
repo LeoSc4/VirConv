@@ -18,6 +18,8 @@ class VoxelRCNN(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
+            print('DEBUG - Inference -> Starting Post_processing for infered results ')
+
             pred_dicts, recall_dicts, = self.post_processing(batch_dict) #post processing for inference
             return pred_dicts, recall_dicts, batch_dict
 

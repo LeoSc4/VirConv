@@ -267,10 +267,11 @@ class Detector3DTemplate(nn.Module):
                     label_preds = label_preds + 1
 
                 if post_process_cfg.get('WBF', True):   # Checks if key 'WBF' exists and if value is true, if it does not exist, it returns True
+                    print('###################### IN WBF IN POST PROCESSING #################################################')
                     if post_process_cfg.OUTPUT_RAW_SCORE:   # get maximum score from the BB class predictions
                         max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)
 
-                    #+# DEBUG - Bounding Boxes get lost here 
+                    #+# DEBUG - Bounding Boxes can get lost here 
                     # Treshold for predicted BB classification confidence filters out BB with low confidence
                     score_mask = cls_preds > post_process_cfg.SCORE_THRESH # Checks if the score is greater than the threshold and uses it as boolean mask
                     final_scores = cls_preds[score_mask]
@@ -278,6 +279,7 @@ class Detector3DTemplate(nn.Module):
                     final_boxes = box_preds[score_mask]
                 else:
 
+                    print('###################### IN CLASS AGNOSTIC NMS IN POST PROCESSING #################################################')
                     # Apply NMS to filter out redundant BB only if WBF is NOT ENABLED
                     selected, selected_scores = model_nms_utils.class_agnostic_nms(
                         box_scores=cls_preds, box_preds=box_preds,
