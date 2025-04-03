@@ -356,11 +356,7 @@ def save_point_cloud_as_pcd(points, filename):
     point_cloud = o3d.geometry.PointCloud()
     
     point_cloud.points = o3d.utility.Vector3dVector(points[:, :3])
-    
-    # Optional: Set colors if existens 
-    # if points.shape[1] == 4:
-        # point_cloud.colors = o3d.utility.Vector3dVector(points[:, 3:6] / 255.0)
-    
+        
     # Save the point cloud as .pcd file
     o3d.io.write_point_cloud(filename, point_cloud)
 
@@ -376,7 +372,6 @@ def cl_prints(batch_dict, pred_dicts, det_annos, i):
     #2D Bounding Box
     # print("--------- 2D Bounding Box ---------")
 
-    # #insert a statement that is only executed if the line is successful 
     # if len(det_annos[i]['bbox']) > 0:       # if something is detected
     #     #print the 2D Bounding Box in the image
     #     print("2D BB in the image: \n", det_annos[i]['bbox'])
@@ -399,24 +394,24 @@ def cl_prints(batch_dict, pred_dicts, det_annos, i):
     
     print("-------------- ANNOS --------------")
     # Print the class of the first frame 
-    print(f"Class of the {i} frame: ", det_annos[i]['name'])
+    print(f"Class of the {i} frame: ", det_annos[0]['name'])
     # Print the score of the first frame
-    print(f"Score of the {i} frame: ", det_annos[i]['score'])
+    print(f"Score of the {i} frame: ", det_annos[0]['score'])
 
     # 3D Bounding Box
-    if len(det_annos[i]['dimensions']) > 0:
+    if len(det_annos[0]['dimensions']) > 0:
         print("-- 3D Bounding Box for Anno --")
         print("Dimensions of the first 3D BB in frame in meters:")
-        print("--Height: ", det_annos[i]['dimensions'][0][0]) # last [0] due to the possibility for multiple detected BB with Height, Width, Length each
-        print("--Width: ", det_annos[i]['dimensions'][0][1])
-        print("--Length: ", det_annos[i]['dimensions'][0][2])
+        print("--Height: ", det_annos[0]['dimensions'][0][0]) # last [0] due to the possibility for multiple detected BB with Height, Width, Length each
+        print("--Width: ", det_annos[0]['dimensions'][0][1])
+        print("--Length: ", det_annos[0]['dimensions'][0][2])
 
         ## Print the location of the 3D Bounding Box
-        print("Location of the 3D BB in camera coordinates in meters: \n", det_annos[i]['location'])
-        print("Dimensions of the 3D BB in camera coordinates in meters: \n", det_annos[i]['dimensions'])
+        print("Location of the 3D BB in camera coordinates in meters: \n", det_annos[0]['location'])
+        print("Dimensions of the 3D BB in camera coordinates in meters: \n", det_annos[0]['dimensions'])
         ## Print the rotation around y-axis in camera coordinates of the 3D Bounding Box
-        print("Rotation around y-axis in camera coordinates of the 3D BB in radians: ", det_annos[i]['rotation_y'])
+        print("Rotation around y-axis in camera coordinates of the 3D BB in radians: ", det_annos[0]['rotation_y'])
 
-        print("Score for eval: ", det_annos[i]['score'])
+        print("Score for eval: ", det_annos[0]['score'])
     else:
         print("3D BB in frame: Not available")
