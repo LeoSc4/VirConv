@@ -1,6 +1,7 @@
 data/
 __pycache__/
 output/
+.vscode/launch.json
 
 #results from preprocessing
 tools/results/ 
@@ -30,8 +31,16 @@ data/kitti/ImageSets/test.txt
 results/
 tools/zz_testspace/
 
+# Inference logs
+tools/inference_logs/
+
 #3D Bounding Box Analysis for Inference works
 tools/zz_log_3dbbox_analysis/ 
 pcdet/version.py
 
-.vscode/launch.json
+
+tools/iw_inference_and_vis_from_gt_boxes_lidar.py
+tools/visualization/kitti_vis_standalone.py
+start_docker_common.sh
+start_docker_user.sh
+build_docker_user.sh

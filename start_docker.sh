@@ -7,7 +7,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 is_image_build() {
-    if [ "$(docker images -q virconv-user 2> /dev/null)" == "" ]; then
+    if [ "$(docker images -q virconv-pytorch1131-cuda117-wandb 2> /dev/null)" == "" ]; then
         echo -e "${RED}Image not found. Have you built the image?${NC}"
         echo -e "${BLUE}Try running: ./build_docker.sh${NC}"
         return 1
@@ -24,17 +24,17 @@ run_docker() {
         xhost +local:root
         docker run \
             --runtime nvidia \
-            --name virconv-user \
+            --name virconv-pytorch1131-cuda117-wandb \
             -it \
             --net host \
             --gpus all \
             --rm \
-            --user $(id -u):$(id -g) \
+            --privileged \
             --env="DISPLAY" \
             --env="QT_X11_NO_MITSHM=1" \
             -v /tmp/.X11-unix:/tmp/.X11-unix \
-            -v "/home/leo/workspace/Docker_tests/Torch1131CUDA117/VirConv:/home/user/workspace" \
-            virconv-user /bin/bash
+            -v "/home/leo/workspace/Docker_tests/Torch1131CUDA117/VirConv:/workspace" \
+            virconv-pytorch1131-cuda117-wandb
             
     fi
 }

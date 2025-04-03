@@ -127,7 +127,7 @@ def get_fov_flag(pts_rect, img_shape, calib):
     pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)    # check if points are in front of the camera
     return pts_valid_flag
 
-def save_depth_as_points(depth, idx, root_path): ##########
+def save_depth_as_points(depth, idx, root_path): 
 
     
     ########## File Index Preprocessing added to use ImageSets that don't start with 000000 idx or contain  ##########
@@ -135,34 +135,25 @@ def save_depth_as_points(depth, idx, root_path): ##########
     type_ImageSet = root_path.split('/')[-1]
     if type_ImageSet == 'testing':
         # open the /workspace/data/kitti/ImageSets/test.txt file and get the index of the image
-        # the content is e.g. 
-        # with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f:
 
-        with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f: # for iw_custom_dataset2
+        with open('/workspace/data/kitti/ImageSets/test.txt', 'r') as f: 
             lines = f.readlines()
             file_idx = int(lines[idx].strip())
     
     elif type_ImageSet == 'training':
         # if the index extends the ImageSet for training, then retrieve the index from the val.txt instead of train.txt
-        # with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f:
-
-        with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f: # for iw_custom_dataset2
+        with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f: 
+            print("DEBUG - Current index: ", idx)
             lines = f.readlines()
-            if idx <= len(lines):
+            if idx < len(lines):
                 file_idx = int(lines[idx].strip())
-            if idx > len(lines):
+            else:
                 idx = idx - len(lines)      # reduce per number of lines to get right index in val.txt
-
                 with open('/workspace/data/kitti/ImageSets/val.txt', 'r') as f:
                     lines = f.readlines()
                     file_idx = int(lines[idx].strip())
     
     file_idx = str(file_idx).zfill(6)
-    ###############
-
-    # lightweight option for the training pipeline
-    # file_idx = str(idx).zfill(6)
-
 
     file_image_path = os.path.join(root_path, 'image_2', file_idx + '.png')
     file_velo_path = os.path.join(root_path, 'velodyne', file_idx + '.bin')

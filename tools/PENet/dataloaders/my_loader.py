@@ -463,13 +463,18 @@ class MyLoader():
         file_idx = self.file_list[item]
 
 
-        # OWN FIX to get the elements from the defined ImageSets instead of common item iter
-        image_sets_test_path = '/workspace/data/kitti/ImageSets/test.txt'
-        # set the file_idx to the explicit element in the image_sets_test_path
-        with open(image_sets_test_path, 'r') as f:
-            lines = f.readlines()
-            print("MyDataLoader: Current retrieved item from ImageSets is: ", lines[item].strip())
-            file_idx = lines[item].strip()
+        # OWN FIX to get the elements from the defined ImageSets instead of common item iter (for temporary testing)
+        # image_sets_test_path = '/workspace/data/kitti/ImageSets/test.txt'
+        # image_sets_test_path = '/workspace/data/kitti/ImageSets/train.txt'
+        
+
+        # # set the file_idx to the explicit element in the image_sets_test_path
+        # with open(image_sets_test_path, 'r') as f:
+        #     lines = f.readlines()
+        #     print("DEBUG: Current item is: ", item)
+
+        #     # print("MyDataLoader: Current retrieved item from ImageSets is: ", lines[item].strip())
+        #     file_idx = lines[item].strip()
 
         file_image_path = os.path.join(self.root_path, 'image_2', file_idx+'.png')
         file_velo_path = os.path.join(self.root_path, 'velodyne', file_idx+'.bin')
@@ -481,7 +486,7 @@ class MyLoader():
         image = image[:352, :1216]
 
         # save the image in the path for pipeline investigation
-        cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_My_loader_get_item_image_cropped_000000.png', image.astype(np.uint8))
+        cv2.imwrite(f'workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_My_loader_get_item_image_cropped_000000.png', image.astype(np.uint8))
 
         rgb, depth = load_depth_input(calib, image, points)
 
