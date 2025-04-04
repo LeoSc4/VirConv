@@ -3,6 +3,8 @@ import open3d as o3d
 
 
 from tools.visual_utils.vis_utils_ls import load_kitti_calib
+from tools.visual_utils.vis_utils_ls import save_point_cloud_as_pcd
+
 
 def load_kitti_labels_in_velo(label_path, calib_path): 
     """
@@ -43,7 +45,7 @@ def load_kitti_labels_in_velo(label_path, calib_path):
         
         calib = load_kitti_calib(calib_path)
         center_velo = calib['cam_rect_to_velo'] @ center                        
-        center_velo = [center_velo[0], center_velo[1], center_velo[2]/2] # + 0.05]   # ADPT
+        center_velo = [center_velo[0], center_velo[1], center_velo[2]]      # /2 -> changed starting from dataset 8: using the center of the min and max x,y,z from the 3D bounding box instead of assuming the center is at 0
         
         rotation_y_velo = np.pi - rotation_y  # Convert from camera frame to lidar frame
 
@@ -75,12 +77,30 @@ def visualize_scene(points, gt_labels=None, predicted_bboxes=None):
     """"
     Visualize the scene with Open3D. Labels must be in the velodyne cf (of points) before creating bounding boxes.
     """
+
+    filter_point_cloud_by_range = True
+
+    if filter_point_cloud_by_range:
+        point_cloud_range = [0, -16, -3, 16, 16, 1]        
+
+        mask = (points[:, 0] >= point_cloud_range[0]) & (points[:, 0] <= point_cloud_range[3]) \
+        & (points[:, 1] >= point_cloud_range[1]) & (points[:, 1] <= point_cloud_range[4]) \
+        & (points[:, 2] >= point_cloud_range[2]) & (points[:, 2] <= point_cloud_range[5])
+        points = points[mask]
+
+
     # Setup Open3D point cloud instance
     points_pcd = o3d.geometry.PointCloud()
+  
     points_pcd.points = o3d.utility.Vector3dVector(points[:, 0:3])  # use only x,y, z 
+
+    # save_point_cloud_as_pcd(points, "/workspace/data/dataset_frame_check.pcd")
+  
     intensity = points[:, 3]
-    colors = np.zeros((points.shape[0],3))    #ensure that color has the same length as points = [N,3]
-    colors[:, 0], colors[:, 1], colors[:, 2] = intensity, intensity, intensity  # set intensity as color for each point and each channel
+    intensity = (intensity - intensity.min()) / (intensity.max() - intensity.min() + 1e-5)  # normalize to [0,1]
+    colors = np.stack([intensity]*3, axis=-1)  # grayscale RGB
+    # colors = np.zeros((points.shape[0],3))    #ensure that color has the same length as points = [N,3]
+    # colors[:, 0], colors[:, 1], colors[:, 2] = intensity, intensity, intensity  # set intensity as color for each point and each channel
     points_pcd.colors = o3d.utility.Vector3dVector(colors)
 
     # Draw origin / coordinate frame into 3D 
@@ -133,12 +153,14 @@ if __name__ == '__main__':
     iw_custom_data = True 
     kitti_reference_data = False
 
-    frame_idx = 0 #5238  #0
+    frame_idx = 5 #5238  #0
+
+    # Filter point cloud by range enabled?
 
     if iw_custom_data:
-        points_path = f"/workspace/data/iw_custom_7_test/training/velodyne/{str(frame_idx).zfill(6)}.bin"      #f"/workspace/data/kitti/training/velodyne/{str(frame_idx).zfill(6)}.bin"
-        calib_path =  f"/workspace/data/iw_custom_7_test/training/calib/{str(frame_idx).zfill(6)}.txt"      #f'/workspace/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
-        labels_path = f"/workspace/data/iw_custom_7_test/training/label_2/{str(frame_idx).zfill(6)}.txt"     #f'/workspace/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
+        points_path = f"/workspace/data/iw_dataset8-2_sample/training/velodyne/{str(frame_idx).zfill(6)}.bin"      #f"/workspace/data/kitti/training/velodyne/{str(frame_idx).zfill(6)}.bin"
+        calib_path =  f"/workspace/data/iw_dataset8-2_sample/training/calib/{str(frame_idx).zfill(6)}.txt"      #f'/workspace/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
+        labels_path = f"/workspace/data/iw_dataset8-2_sample/training/label_2/{str(frame_idx).zfill(6)}.txt"     #f'/workspace/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
 
     if kitti_reference_data: 
         points_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/velodyne_depth/{str(frame_idx).zfill(6)}.npy'

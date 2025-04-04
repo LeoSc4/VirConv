@@ -52,7 +52,7 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
             center = anno['location'][bbox_idx, :]
             center = np.append(np.array(anno['location'][bbox_idx], dtype=np.float32), 1.0) #add 1.0 for homogenous coordinates
             center_velo = calib_for_selected_frame['cam_rect_to_velo'] @ center
-            center_velo = [center_velo[0], center_velo[1], center_velo[2]/2] # + 0.05]   ## ADPT
+            center_velo = [center_velo[0], center_velo[1], center_velo[2]]          # /2 -> changed starting from dataset 8: using the center of the min and max x,y,z from the 3D bounding box instead of assuming the center is at 0
             rotation_y_velo = np.pi - anno['rotation_y'][bbox_idx]  # Convert from camera frame to lidar frame 
             size = anno['dimensions'][bbox_idx, :]  # original format: l, w, h -> see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
             # change from l, w, h to h, l, w
