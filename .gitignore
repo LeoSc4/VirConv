@@ -44,3 +44,5 @@ tools/visualization/kitti_vis_standalone.py
 start_docker_common.sh
 start_docker_user.sh
 build_docker_user.sh
+tools/workspace/camera_poses.json
+tools/workspace/mocked_pred_boxes.csv

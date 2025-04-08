@@ -43,7 +43,7 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
     for anno in annos: 
 
         # Get the calib for the selected frame 
-        calib_path_for_selected_frame = f"../data/kitti/testing/calib/{str(anno['frame_id']).zfill(6)}.txt"
+        calib_path_for_selected_frame = f"../data/kitti/training/calib/{str(anno['frame_id']).zfill(6)}.txt"
         calib_for_selected_frame = load_kitti_calib(calib_path_for_selected_frame)
 
         formatted_boxes_per_frame = []
@@ -87,14 +87,14 @@ def get_points_for_frame(selected_frame, point_cloud_range=None):
     # selected frame e.g. '000000'
     # point_cloud_range = [x_min, y_min, z_min, x_max, y_max, z_max]
 
-    points_path = f"../data/kitti/testing/velodyne/{str(selected_frame).zfill(6)}.bin"
-    points= np.fromfile(points_path, dtype=np.float32).reshape(-1, 4)   #load from bin in testing
+    points_path = f"../data/kitti/training/velodyne/{str(selected_frame).zfill(6)}.bin"
+    points= np.fromfile(points_path, dtype=np.float32).reshape(-1, 4)   #load from bin in training
 
     if point_cloud_range is not None:
         mask = (points[:, 0] >= point_cloud_range[0]) & (points[:, 0] <= point_cloud_range[3]) \
             & (points[:, 1] >= point_cloud_range[1]) & (points[:, 1] <= point_cloud_range[4]) \
             & (points[:, 2] >= point_cloud_range[2]) & (points[:, 2] <= point_cloud_range[5])
-    points = points[mask] 
+        points = points[mask] 
 
     return points
 
@@ -171,7 +171,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
         logger.info("-> Values are in camera coordinate frame.")
 
-        csv_output_path = f'inference_logs/iw_data7/sweep-cLR_AnchorLWH_25Samples/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+        csv_output_path = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
 
         for anno in annos_for_all_frames: 
             if anno[0]['frame_id'] == selected_frame:
@@ -211,14 +211,14 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         gt_labels = None
         if visualize_gt:
             # execute only if gt_labels are available, otherwise skip
-            if os.path.exists(f"../data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"):
-                labels_path = f"../data/kitti/testing/label_2/{str(selected_frame).zfill(6)}.txt"
-                calib_path = f"../data/kitti/testing/calib/{str(selected_frame).zfill(6)}.txt"
+            if os.path.exists(f"../data/kitti/training/label_2/{str(selected_frame).zfill(6)}.txt"):
+                labels_path = f"../data/kitti/training/label_2/{str(selected_frame).zfill(6)}.txt"
+                calib_path = f"../data/kitti/training/calib/{str(selected_frame).zfill(6)}.txt"
                 gt_labels = load_kitti_labels_in_velo(labels_path, calib_path)
             else:
                 logger.warning(f"Ground truth labels not found for frame {selected_frame}. Skipping visualization of ground truth.")
 
-        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame)
+        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame, selected_frame=selected_frame) #visualize the scene with Open3D
     
 
 
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     # Mock command-line arguments 
     sys.argv = [
     'iw_inference_and_vis.py',
-    '--cfg_file', 'cfgs/models/kitti/VirConv-T-IW-DS-7.yaml',                                               #for iw_custom_data
+    '--cfg_file', 'cfgs/models/kitti/VirConv-T-IW-DS-8.yaml',                                               #for iw_custom_data
     # '--cfg_file', '/home/user/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
     '--batch_size', '1',
     '--workers', '0'
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     print(args)
 
     ##### Change if you use kitti/ iw_data
-    log_dir = 'inference_logs/iw_data7/sweep-cLR_AnchorLWH_25Samples' 
+    log_dir = 'inference_logs/iw_data8' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
@@ -247,15 +247,36 @@ if __name__ == '__main__':
     # PAPER VirConv with KITTI Data
     # model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
     
-    ########## Sweep cLR_AnchorLWH_25Samples - https://wandb.ai/idealworks-ml/VirConv/sweeps/g9ma6tl5/workspace?nw=nwuseredgeai ################
+    ########## Dataset 7:   Sweep cLR_AnchorLWH_25Samples - https://wandb.ai/idealworks-ml/VirConv/sweeps/g9ma6tl5/workspace?nw=nwuseredgeai ################
     ## Best result at epoch 200           https://wandb.ai/idealworks-ml/VirConv/runs/nvpgcbej/overview
     # Check 200 (1.002 loss) 
-    model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/Sweep-cLR_AnchorLWH_25Samples/IW_DS7_000000_ckpt_200EP_AnchorLWH_BS4_25SSweep_cLR_AchLWH_S25_0jyyn3gt/ckpt/checkpoint_epoch_200.pth'
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/Sweep-cLR_AnchorLWH_25Samples/IW_DS7_000000_ckpt_200EP_AnchorLWH_BS4_25SSweep_cLR_AchLWH_S25_0jyyn3gt/ckpt/checkpoint_epoch_200.pth'
+
+    
+    ########## Dataset 8 ###########
+    # SWP_DS8_j3pxxp19: https://wandb.ai/idealworks-ml/VirConv/runs/37w6p6i9?nw=nwuseredgeai
+    # VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_j3pxxp19_j3pxxp19/
+    # Epoch 29 => loss = 0.68337
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_j3pxxp19_j3pxxp19/ckpt/checkpoint_epoch_29.pth'
+    
+
+    # SWP_DS8_95uwrkey: https://wandb.ai/idealworks-ml/VirConv/runs/0b1qzydm?nw=nwuseredgeai
+    # IW_DS8_50EP_SWP_DS8_95uwrkey_95uwrkey
+    # Epoch 26 =>0.6956
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_95uwrkey_95uwrkey/ckpt/checkpoint_epoch_26.pth'
+
+
+    ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworks-ml/VirConv/runs/5gobr6s1?nw=nwuseredgeai
+    # IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv
+    # Epoch 30 = 0.63977
+    model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv/ckpt/checkpoint_epoch_30.pth'
+
 
     ### Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]
-    # KITTI = [0, -40, -3, 70.4, 40, 1]
-    # IW_Custom = [0, -16, -3, 16, 16, 1] 
-    point_cloud_range = [0, -16, -3, 16, 16, 1]    
+            # KITTI = [0, -40, -3, 70.4, 40, 1]
+            # IW_Custom = [0, -16, -3, 16, 16, 1] 
+    point_cloud_range = None #[0, -16, -3, 16, 16, 1]   
+
 
     # define output path for each frame to write the predictions in a file 
     # integrate the checkpoint name in the path to distinguish the results and also the current time

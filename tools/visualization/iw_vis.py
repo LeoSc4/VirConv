@@ -36,7 +36,7 @@ def load_kitti_labels_in_velo(label_path, calib_path):
         u1, v1, u2, v2 = float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])
 
         # 3D bounding box parameters
-        center = np.array([float(parts[11]), float(parts[12]), float(parts[13]), 1.0]) #x, y, z
+        center = np.array([float(parts[11]), float(parts[12]), float(parts[13]), 1.0]) #x, y, z         
         rotation_y = float(parts[14])  # Rotation around Y-axis
         
         
@@ -73,7 +73,7 @@ def create_bounding_box(label):
     return bbox
 
 
-def visualize_scene(points, gt_labels=None, predicted_bboxes=None): 
+def visualize_scene(points, gt_labels=None, predicted_bboxes=None, selected_frame=None): 
     """"
     Visualize the scene with Open3D. Labels must be in the velodyne cf (of points) before creating bounding boxes.
     """
@@ -81,7 +81,7 @@ def visualize_scene(points, gt_labels=None, predicted_bboxes=None):
     filter_point_cloud_by_range = True
 
     if filter_point_cloud_by_range:
-        point_cloud_range = [0, -16, -3, 16, 16, 1]        
+        point_cloud_range = [0, -16, -3, 16, 16, 1]        #[0, -40, -3, 70.4, 40, 1] 
 
         mask = (points[:, 0] >= point_cloud_range[0]) & (points[:, 0] <= point_cloud_range[3]) \
         & (points[:, 1] >= point_cloud_range[1]) & (points[:, 1] <= point_cloud_range[4]) \
@@ -104,11 +104,13 @@ def visualize_scene(points, gt_labels=None, predicted_bboxes=None):
     points_pcd.colors = o3d.utility.Vector3dVector(colors)
 
     # Draw origin / coordinate frame into 3D 
-    coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=3.0, origin=[0, 0, 0])
+    coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=[0, 0, 0])
     
+    window_title = f"Visualizing Frame: {selected_frame}" if selected_frame is not None else "Visualizing Scene"
+
     # Visualize Point Cloud 
     vis = o3d.visualization.Visualizer()
-    vis.create_window()
+    vis.create_window(window_name=window_title)
     vis.add_geometry(points_pcd)
     vis.add_geometry(coordinate_frame)
 
@@ -153,19 +155,27 @@ if __name__ == '__main__':
     iw_custom_data = True 
     kitti_reference_data = False
 
-    frame_idx = 5 #5238  #0
+    frame_idx = 8 #5238  #0
 
     # Filter point cloud by range enabled?
 
     if iw_custom_data:
+        # points_path = f'/workspace/data/KITTI_000008_frame/training/velodyne/{str(frame_idx).zfill(6)}.bin'
+        # calib_path = f'/workspace/data/KITTI_000008_frame/training/calib/{str(frame_idx).zfill(6)}.txt'
+        # labels_path = f'/workspace/data/KITTI_000008_frame/training/label_2/{str(frame_idx).zfill(6)}.txt'
+
         points_path = f"/workspace/data/iw_dataset8-2_sample/training/velodyne/{str(frame_idx).zfill(6)}.bin"      #f"/workspace/data/kitti/training/velodyne/{str(frame_idx).zfill(6)}.bin"
         calib_path =  f"/workspace/data/iw_dataset8-2_sample/training/calib/{str(frame_idx).zfill(6)}.txt"      #f'/workspace/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
         labels_path = f"/workspace/data/iw_dataset8-2_sample/training/label_2/{str(frame_idx).zfill(6)}.txt"     #f'/workspace/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
 
     if kitti_reference_data: 
-        points_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/velodyne_depth/{str(frame_idx).zfill(6)}.npy'
-        calib_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
-        labels_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
+        # points_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/velodyne_depth/{str(frame_idx).zfill(6)}.npy'
+        # calib_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/calib/{str(frame_idx).zfill(6)}.txt'
+        # labels_path = f'/workspace/data/Reference_Subset_One/data/kitti/training/label_2/{str(frame_idx).zfill(6)}.txt'
+        points_path = f'/workspace/data/KITTI_000008_frame/training/velodyne_depth/{str(frame_idx).zfill(6)}.npy'
+        calib_path = f'/workspace/data/KITTI_000008_frame/training/calib/{str(frame_idx).zfill(6)}.txt'
+        labels_path = f'/workspace/data/KITTI_000008_frame/training/label_2/{str(frame_idx).zfill(6)}.txt'
+
 
     main(points_path, calib_path, labels_path, iw_custom_data, kitti_reference_data)  
 
