@@ -15,6 +15,12 @@ from tools.visual_utils import vis_utils_ls
 from tools.visualization.iw_vis import visualize_scene, load_kitti_labels_in_velo
 from tools.visual_utils.vis_utils_ls import load_kitti_calib
 
+from tools.workspace.pose_reconstruction_omnv import get_camera_pose_omnv_world
+from tools.workspace.pose_reconstruction_omnv import reconstruct_bbox_pose_omnv_world
+from tools.workspace.pose_reconstruction_omnv import map_class_name
+
+from copy import deepcopy
+
 import datetime
 import warnings
 warnings.filterwarnings("ignore")
@@ -160,6 +166,97 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         if cli_prints == True:
             vis_utils_ls.cl_prints(batch_dict, pred_dicts, annos, i)
 
+    print("------------ Starting Logging of predicted BB in KITTI Cam CF -------------")    
+    csv_output_path_BB_cam = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_kitti_cam_cf.csv'
+    # write annos in one csv with frame_id at last column 
+    with open(csv_output_path_BB_cam, 'w') as f:                    
+        # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_cam, y_cam, z_cam, rotation_y, score, frame_id\n') #toggle based on usage 
+        
+        for anno in annos_for_all_frames:       
+            for bbox_idx in range(len(anno[0]['name'])):
+                bbox_2d = anno[0]['bbox'][bbox_idx]
+                dims = anno[0]['dimensions'][bbox_idx]
+                loc = anno[0]['location'][bbox_idx]
+
+                f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s\n' % (
+                        anno[0]['name'][bbox_idx],
+                        anno[0]['truncated'][bbox_idx],
+                        anno[0]['occluded'][bbox_idx],
+                        anno[0]['alpha'][bbox_idx],
+                        bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
+                        dims[1], dims[2], dims[0], # #lhw -> hwl
+                        loc[0], loc[1], loc[2],
+                        anno[0]['rotation_y'][bbox_idx], 
+                        anno[0]['score'][bbox_idx], 
+                        anno[0]['frame_id'] 
+                ))
+                        
+        logger.info(f"Predicted Bounding Boxes in KITTI Cam CF written to {csv_output_path_BB_cam}") 
+
+
+    print("------------ Starting Logging of predicted BB in Simulation World CF -------------")    
+
+    # Get the predicted BBoxes in camera coordinate frame
+    # create copy to not overwrite the original annos
+    annos_for_all_frames_kitti_cam = deepcopy(annos_for_all_frames) 
+    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_8.json"
+
+    # Get the camera extrinsics for all frames 
+    Tr_cam_transform_matrices = get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
+
+    annos_for_all_frames_sim_world = []
+
+    for anno_kitti_cam in annos_for_all_frames_kitti_cam:
+        for bbox_idx in range(len(anno_kitti_cam[0]['name'])):
+            curr_frame_id = anno_kitti_cam[0]['frame_id']
+            # Pre-formatting 
+            # center = anno_kitti_cam[0]['location'][bbox_idx, :]
+            center_hom = np.append(np.array(anno_kitti_cam[0]['location'][bbox_idx], dtype=np.float32), 1.0)
+
+            bbox_center_omnv_world = reconstruct_bbox_pose_omnv_world(Tr_cam_transform_matrices, pred_bbox_center_kitti_cam=center_hom, current_frame_id=curr_frame_id)
+
+            # update the location of the bbox in the annos
+            anno_kitti_cam[0]['location'][bbox_idx, :] = bbox_center_omnv_world[:3]
+
+            # update the rotation_y to rotation_z naming as the bbox are now in Omniverse Isaac Sim world coordinates with z up  
+            anno_kitti_cam[0]['rotation_z_sim'] = anno_kitti_cam[0]['rotation_y'].copy()
+            del anno_kitti_cam[0]['rotation_y']
+
+            # Map the class names to application class names 
+            anno_kitti_cam[0]['name'] = anno_kitti_cam[0]['name'].astype('<U20')    #prevent cropping class at <U3 by limiting to 20 characters
+            print(anno_kitti_cam[0]['name'].dtype)
+            anno_kitti_cam[0]['name'][bbox_idx] = map_class_name(anno_kitti_cam[0]['name'][bbox_idx])
+            
+            annos_for_all_frames_sim_world.append(anno_kitti_cam)
+
+    csv_output_path_BB_SIM_world = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
+    with open(csv_output_path_BB_SIM_world, 'w') as f:      
+
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id\n') #toggle based on usage 
+        
+        for anno_sim in annos_for_all_frames_sim_world:       
+            for bbox_idx in range(len(anno_sim[0]['name'])):
+                bbox_2d = anno_sim[0]['bbox'][bbox_idx]
+                dims = anno_sim[0]['dimensions'][bbox_idx]
+                loc = anno_sim[0]['location'][bbox_idx]
+
+                f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s\n' % (
+                        anno_sim[0]['name'][bbox_idx],
+                        anno_sim[0]['truncated'][bbox_idx],
+                        anno_sim[0]['occluded'][bbox_idx],
+                        anno_sim[0]['alpha'][bbox_idx],
+                        bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
+                        dims[1], dims[2], dims[0], # #lhw -> hwl
+                        loc[0], loc[1], loc[2],
+                        anno_sim[0]['rotation_z_sim'][bbox_idx], 
+                        anno_sim[0]['score'][bbox_idx], 
+                        anno_sim[0]['frame_id'] 
+                ))
+        
+        logger.info(f"Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world}") 
+
+
     print("------------ Starting Visualization -------------")
     for i in range(len(inference_dataset)):
         selected_frame = inference_dataset[i]['frame_id']
@@ -169,40 +266,13 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         # Log the predicted bounding boxes with the logger 
         
         logger.info(f"Predicted Bounding Boxes for frame {selected_frame}:")
-        logger.info("-> Values are in camera coordinate frame.")
-
-        csv_output_path = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{selected_frame}_predicted bboxes.csv'
+        logger.info("-> Values are in camera coordinate frame.")                    
 
         for anno in annos_for_all_frames: 
-            if anno[0]['frame_id'] == selected_frame:
-                logger.info(f"\n ----Dimensions per BBoxes: \n {anno[0]['dimensions']}")
-                logger.info(f"\n ----Locations per BBoxes: \n {anno[0]['location']}")
-                logger.info(f"\n ----Rotation_y per BBoxes: \n {anno[0]['rotation_y']}")
-
-                # write annos as csv with frame_id in name and the current time 
-                # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
-                with open(csv_output_path, 'w') as f:
-                    
-                    f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_cam, y_cam, z_cam, rotation_y, score\n') #toggle based on usage 
-                    
-                    for bbox_idx in range(len(anno[0]['name'])):
-                        bbox_2d = anno[0]['bbox'][bbox_idx]
-                        dims = anno[0]['dimensions'][bbox_idx]
-                        loc = anno[0]['location'][bbox_idx]
-
-                        f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f\n' % (
-                                anno[0]['name'][bbox_idx],
-                                anno[0]['truncated'][bbox_idx],
-                                anno[0]['occluded'][bbox_idx],
-                                anno[0]['alpha'][bbox_idx],
-                                bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
-                                dims[1], dims[2], dims[0], # #lhw -> hwl
-                                loc[0], loc[1], loc[2],
-                                anno[0]['rotation_y'][bbox_idx], 
-                                anno[0]['score'][bbox_idx] 
-                        ))
-                                
-                logger.info(f"Predicted Bounding Boxes written to {csv_output_path}")                     
+                if anno[0]['frame_id'] == selected_frame:
+                    logger.info(f"\n ----Dimensions per BBoxes: \n {anno[0]['dimensions']}")
+                    logger.info(f"\n ----Locations per BBoxes: \n {anno[0]['location']}")
+                    logger.info(f"\n ----Rotation_y per BBoxes: \n {anno[0]['rotation_y']}")
 
         # Extract the pred_boxes for the selected frame
         pred_boxes_for_selected_frame = get_pred_boxes_for_frame(det_annos_velo_for_all_frames, selected_frame)

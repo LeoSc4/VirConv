@@ -25,7 +25,7 @@ def get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path):
         T[:3, :3] = rot_matrix
         T[:3, 3] = position
 
-        frame_id = f"{frame:06d}"
+        frame_id = f"{frame:06d}"  #add the frame id to the dictionary. Assumption: frame id is the index of the frame in the list (dataset generation corresponds to the defined camera trajectory)
 
         cam_transform_matrices.append({
             "Tr_kitti_cam_to_omni_world": T, 
@@ -71,7 +71,7 @@ def get_bbox_pose_kitti_cam(pred_bbox_pose_kitti_cam_path):
 
     return pred_bboxes_poses_kitti_cam
 
-def reconstruct_bbox_pose_omnv_world(cam_transform_matrices, pred_bboxes_poses_kitti_cam, current_frame_id):
+def reconstruct_bbox_pose_omnv_world_standalone(cam_transform_matrices, pred_bboxes_poses_kitti_cam, current_frame_id):
     # Transforms each predicted bounding box pose PER FRAME from camera coordinates to Omniverse world coordinates.
 
     bbox_poses_omnv_world = []
@@ -94,6 +94,31 @@ def reconstruct_bbox_pose_omnv_world(cam_transform_matrices, pred_bboxes_poses_k
     return bbox_poses_omnv_world
 
 
+def reconstruct_bbox_pose_omnv_world(cam_transform_matrices, pred_bbox_center_kitti_cam, current_frame_id):
+    # Transforms each predicted bounding box pose PER FRAME from camera coordinates to Omniverse world coordinates.
+
+    bbox_poses_omnv_world = []
+
+    for frame in cam_transform_matrices:
+        if frame['frame_id'] == current_frame_id:
+            # Get the cam_T for the current frame 
+            cam_T = frame['Tr_kitti_cam_to_omni_world'] # 4x4 
+
+            bbox_center_omnv_world = cam_T @ pred_bbox_center_kitti_cam
+
+            # Print the transformed bounding box poses
+            print(f"Bbox pose in omniverse world coordinates: \n{bbox_center_omnv_world}")
+
+    return bbox_center_omnv_world
+
+def map_class_name(name_kitti): 
+    # Map the class name from KITTI to our application
+    class_mapping = {
+        'Car': 'Trolley_RU2',
+        # Add more mappings as needed
+
+    }
+    return class_mapping.get(name_kitti, 'Unknown')  # Default to 'Unknown' if not found
 
 
 
@@ -119,7 +144,7 @@ if __name__ == "__main__":
     # Iterate over the mocked frame ids and reconstruct the bounding box poses
     for frame in range(len(mocked_frame_ids)):
         current_frame_id = mocked_frame_ids[frame]
-        bbox_pose_omnv_world = reconstruct_bbox_pose_omnv_world(cam_transform_matrices, pred_bbox_pose_kitti_cam, current_frame_id)
+        bbox_pose_omnv_world = reconstruct_bbox_pose_omnv_world_standalone(cam_transform_matrices, pred_bbox_pose_kitti_cam, current_frame_id)
         bbox_poses_omnv_world_for_all_frames.append(bbox_pose_omnv_world)
         
         print(f"Frame {mocked_frame_ids[frame]} - Bbox poses in omniverse world coordinates: \n{bbox_pose_omnv_world}\n")
