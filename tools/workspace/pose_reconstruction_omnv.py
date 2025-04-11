@@ -121,6 +121,14 @@ def map_class_name(name_kitti):
     return class_mapping.get(name_kitti, 'Unknown')  # Default to 'Unknown' if not found
 
 
+def get_asset_path_omnv(class_name):
+    
+    asset_path_mapping = {
+        'Trolley_RU2': '/home/leo/workspace/Omniverse/OwnAssets/Trolley_RU2/RU2_dolly.usdc',
+        # Add more mappings as needed
+    }
+
+    return asset_path_mapping.get(class_name, 'Unknown')  # Default to 'Unknown' if not found
 
 
 if __name__ == "__main__":

@@ -207,6 +207,8 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
 
     annos_for_all_frames_sim_world = []
 
+    from tools.workspace.pose_reconstruction_omnv import get_asset_path_omnv
+
     for anno_kitti_cam in annos_for_all_frames_kitti_cam:
         for bbox_idx in range(len(anno_kitti_cam[0]['name'])):
             curr_frame_id = anno_kitti_cam[0]['frame_id']
@@ -227,13 +229,14 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             anno_kitti_cam[0]['name'] = anno_kitti_cam[0]['name'].astype('<U20')    #prevent cropping class at <U3 by limiting to 20 characters
             print(anno_kitti_cam[0]['name'].dtype)
             anno_kitti_cam[0]['name'][bbox_idx] = map_class_name(anno_kitti_cam[0]['name'][bbox_idx])
-            
+            anno_kitti_cam[0]['asset_path_omnv'] = str(get_asset_path_omnv(anno_kitti_cam[0]['name'][bbox_idx])) #get the asset path for the specific class name
+
             annos_for_all_frames_sim_world.append(anno_kitti_cam)
 
     csv_output_path_BB_SIM_world = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
     with open(csv_output_path_BB_SIM_world, 'w') as f:      
 
-        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id\n') #toggle based on usage 
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id, asset_path\n') #toggle based on usage 
         
         for anno_sim in annos_for_all_frames_sim_world:       
             for bbox_idx in range(len(anno_sim[0]['name'])):
@@ -241,7 +244,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                 dims = anno_sim[0]['dimensions'][bbox_idx]
                 loc = anno_sim[0]['location'][bbox_idx]
 
-                f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s\n' % (
+                f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s, %s\n' % (
                         anno_sim[0]['name'][bbox_idx],
                         anno_sim[0]['truncated'][bbox_idx],
                         anno_sim[0]['occluded'][bbox_idx],
@@ -251,7 +254,8 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                         loc[0], loc[1], loc[2],
                         anno_sim[0]['rotation_z_sim'][bbox_idx], 
                         anno_sim[0]['score'][bbox_idx], 
-                        anno_sim[0]['frame_id'] 
+                        anno_sim[0]['frame_id'],
+                        anno_sim[0]['asset_path_omnv']
                 ))
         
         logger.info(f"Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world}") 
@@ -288,7 +292,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             else:
                 logger.warning(f"Ground truth labels not found for frame {selected_frame}. Skipping visualization of ground truth.")
 
-        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame, selected_frame=selected_frame) #visualize the scene with Open3D
+        # visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame, selected_frame=selected_frame) #visualize the scene with Open3D
     
 
 
