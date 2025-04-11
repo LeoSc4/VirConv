@@ -1,0 +1,31 @@
+program: train.py 
+project: VirConv
+name: DS8_cLR_50EP_BS8
+description: This sweep uses 700 training samples from DS8. It is intended to check the best ranges for the LR with the amount of training samples. Constant Learning rate. Batch Size = 8. Epochs = 50. Anchor size = [0.9, 1.3, 0.5]
+method: bayes  # Can also be 'grid' or 'random'
+metric:
+  name: train/loss        # metric that should be optimized
+  goal: minimize
+
+
+parameters:
+  OPTIMIZATION.LR:
+    distribution: log_uniform_values
+    min: 0.0003    #0.0001
+    max: 0.003    #0.002
+ 
+command:
+  - python3
+  - ${program}
+  - --cfg_file
+  - cfgs/models/kitti/VirConv-T-IW-DS-8.yaml
+  - --epochs
+  - 30
+  - --batch_size
+  - 8
+  - --extra_tag 
+  - IW_DS8_50EP_
+  - --ckpt
+  - ../output/pretrained_models/VirConv-T-Paper.pth
+  - --sweep_config
+  - "${args_json_file}"

@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/IW-dataset-7.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/IW-dataset-8.yaml
     DATASET: 'KittiDatasetMM'
     INPUT_DISCARD_RATE: 0.8   # actually discard more than 90% virtual points of RGB image,
                               # as we only saved less than 50% RGB points during depth2points conversion.
@@ -162,9 +162,9 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                'anchor_sizes': [[0.5, 0.5, 0.5]], # Length = 0.9, Width = 1.3, Height = 0.5         
+                'anchor_sizes': [[0.9, 1.3, 0.5]],  # Length = 0.9, Width = 1.3, Height = 0.5         
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.45],   #otherwise the anchors are starting below the ground
+                'anchor_bottom_heights': [-1.45],             #otherwise the anchors are starting below the ground
                 'align_center': False,              #defines if anchors are placed on middle of grid or directly on grid points
                 'feature_map_stride': 8,
                 'matched_threshold': 0.6,           # mark anchors as positiv during training if IoU higher than this treshold   || if in between matched_ & unmatched_treshold = ignore 

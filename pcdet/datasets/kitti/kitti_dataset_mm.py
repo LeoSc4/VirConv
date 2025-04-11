@@ -447,7 +447,7 @@ class KittiDatasetMM(DatasetTemplate):
             if self.training and 'num_points_in_gt' in annos:
                 
                 ######### WARNUNG #########################################################################
-                print('WARNING: num_points_in_gt is USED in the current implementation')
+                # print('WARNING: num_points_in_gt is USED in the current implementation')
                 nmask = annos['num_points_in_gt']>0
                 # print('WARNING: num_points_in_gt is NOT used in the current implementation')
                 # nmask = annos['num_points_in_gt']>=0
