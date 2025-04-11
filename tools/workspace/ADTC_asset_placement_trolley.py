@@ -2,12 +2,51 @@ from omni.isaac.core import World
 from omni.isaac.core.utils.stage import add_reference_to_stage
 
 import omni.usd
-from pxr import UsdGeom, Gf
+from pxr import Usd, UsdGeom, Gf
 
 import time
 import math
 
 import os 
+
+def compute_bbox_center(prim: Usd.Prim) -> Gf.Vec3d:
+    """
+    Compute the center of the bounding box of a given prim.
+ 
+    Args:
+        prim: A Usd.Prim object.
+ 
+    Returns:
+        Gf.Vec3d: The center point of the aligned bounding box.
+    """
+    imageable = UsdGeom.Imageable(prim)
+    time = Usd.TimeCode.Default()
+    bound = imageable.ComputeWorldBound(time, UsdGeom.Tokens.default_)
+    bound_range = bound.ComputeAlignedBox()
+    min_pt = bound_range.GetMin()
+    max_pt = bound_range.GetMax()
+    center = (min_pt + max_pt) * 0.5
+    return center
+
+def get_Tr_bb_center_to_prim_cf(prim: Usd.Prim) -> Gf.Matrix4d:
+    """
+    Compute the transformation matrix from the bounding box center to the prim's local cf.
+    Args:
+        prim: A Usd.Prim object.
+    
+    Returns:
+        Gf.Matrix4d: The transformation matrix.
+    """
+    imageable = UsdGeom.Imageable(prim)
+    time = Usd.TimeCode.Default()
+    bound = imageable.ComputeWorldBound(time, UsdGeom.Tokens.default_)
+    bound_range = bound.ComputeAlignedBox()
+    min_pt = bound_range.GetMin()
+    max_pt = bound_range.GetMax()
+    center = (min_pt + max_pt) * 0.5
+    translation_mat = Gf.Matrix4d().SetTranslate(center)
+    return translation_mat
+
 
 # Create or get the World
 world = World(stage_units_in_meters=1.0)
@@ -15,7 +54,7 @@ world = World(stage_units_in_meters=1.0)
 # Load the stage
 stage = omni.usd.get_context().get_stage()
 
-sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-11_07-03-04_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
+sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-11_19-21-23_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
 
 # For lines in csv except header: 
 # Get the asset path 
@@ -38,7 +77,7 @@ with open(sim_bbox_infos_path, 'r') as f:
         print("Asset path: " + str(asset_path))
         # Construct the prim path with unique identifier counting upwards for same class
         
-        prim_path = f"/World/{bbox_class}_{idx}_rotated"
+        prim_path = f"/World/{bbox_class}_{idx}"
         print("Prim path: " + str(prim_path))
         
         # Add the asset reference to the stage (world) 
@@ -54,10 +93,14 @@ with open(sim_bbox_infos_path, 'r') as f:
         xform = UsdGeom.Xformable(prim) # ensure that prim is tranformable
 
         ## Apply the Translation ##
+        # Get the transformation from bbox center to the prim's local coordinate frame
+        
+        translation_mat = get_Tr_bb_center_to_prim_cf(prim)
 
-        transl_x = float(parts[11])
-        transl_y = float(parts[12])
-        transl_z = float(parts[13])
+        # Combine the translation_mat and the translation from csv file 
+        transl_x = float(parts[11]) - translation_mat[3][0] 
+        transl_y = float(parts[12]) - translation_mat[3][1] 
+        transl_z = float(parts[13]) - translation_mat[3][2] 
 
         translation = Gf.Vec3d(transl_x, transl_y, transl_z)
         xform.AddTranslateOp().Set(translation)
