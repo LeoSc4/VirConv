@@ -193,7 +193,6 @@ def save_depth_as_points(depth, idx, root_path):
     print("#+# Saving the get_fov_flag as .npy & .pcd file")
     # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_fov_flag_II.npy', fov_flag)
 
-    #Commented out the FOV_flag #+#        ### To be tested again
     lidar = lidar[fov_flag]
     print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: Applied the fov_flag to the lidar points')
     #+# save the lidar to check if the points are in the right range (use current date time)
