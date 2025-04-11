@@ -18,6 +18,7 @@ from tools.visual_utils.vis_utils_ls import load_kitti_calib
 from tools.workspace.pose_reconstruction_omnv import get_camera_pose_omnv_world
 from tools.workspace.pose_reconstruction_omnv import reconstruct_bbox_pose_omnv_world
 from tools.workspace.pose_reconstruction_omnv import map_class_name
+from tools.workspace.pose_reconstruction_omnv import get_asset_path_omnv
 
 from copy import deepcopy
 
@@ -140,8 +141,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         load_data_to_gpu(batch_dict) #converts the data to the torch tensors
         with torch.no_grad():
             pred_dicts, ret_dict, batch_dict = model(batch_dict)    #forward pass
-                                                                    # batch_dict can be neglected for Bounding Box 
-        
+                                                                    # batch_dict can be neglected for Bounding Box
 
         print("DEBUG ##################### INFERENCE Done #######################")
 
@@ -167,7 +167,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             vis_utils_ls.cl_prints(batch_dict, pred_dicts, annos, i)
 
     print("------------ Starting Logging of predicted BB in KITTI Cam CF -------------")    
-    csv_output_path_BB_cam = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_kitti_cam_cf.csv'
+    csv_output_path_BB_cam = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_kitti_cam_cf.csv'
     # write annos in one csv with frame_id at last column 
     with open(csv_output_path_BB_cam, 'w') as f:                    
         # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
@@ -207,7 +207,6 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
 
     annos_for_all_frames_sim_world = []
 
-    from tools.workspace.pose_reconstruction_omnv import get_asset_path_omnv
 
     for anno_kitti_cam in annos_for_all_frames_kitti_cam:
         for bbox_idx in range(len(anno_kitti_cam[0]['name'])):
@@ -222,8 +221,9 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             anno_kitti_cam[0]['location'][bbox_idx, :] = bbox_center_omnv_world[:3]
 
             # update the rotation_y to rotation_z naming as the bbox are now in Omniverse Isaac Sim world coordinates with z up  
-            anno_kitti_cam[0]['rotation_z_sim'] = anno_kitti_cam[0]['rotation_y'].copy()
-            del anno_kitti_cam[0]['rotation_y']
+            if bbox_idx == 0: #only delete the array of the rotations (list of rotation_y) once because anno_kitti_cam[0] contains multiple bboxes
+                anno_kitti_cam[0]['rotation_z_sim'] = deepcopy(anno_kitti_cam[0]['rotation_y'])
+                del anno_kitti_cam[0]['rotation_y']
 
             # Map the class names to application class names 
             anno_kitti_cam[0]['name'] = anno_kitti_cam[0]['name'].astype('<U20')    #prevent cropping class at <U3 by limiting to 20 characters
@@ -231,9 +231,9 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             anno_kitti_cam[0]['name'][bbox_idx] = map_class_name(anno_kitti_cam[0]['name'][bbox_idx])
             anno_kitti_cam[0]['asset_path_omnv'] = str(get_asset_path_omnv(anno_kitti_cam[0]['name'][bbox_idx])) #get the asset path for the specific class name
 
-            annos_for_all_frames_sim_world.append(anno_kitti_cam)
+        annos_for_all_frames_sim_world.append(anno_kitti_cam)
 
-    csv_output_path_BB_SIM_world = f'inference_logs/iw_data8/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
+    csv_output_path_BB_SIM_world = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
     with open(csv_output_path_BB_SIM_world, 'w') as f:      
 
         f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id, asset_path\n') #toggle based on usage 
@@ -292,8 +292,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             else:
                 logger.warning(f"Ground truth labels not found for frame {selected_frame}. Skipping visualization of ground truth.")
 
-        # visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame, selected_frame=selected_frame) #visualize the scene with Open3D
-    
+        visualize_scene(points, gt_labels=gt_labels, predicted_bboxes=pred_boxes_for_selected_frame, selected_frame=selected_frame) #visualize the scene with Open3D
 
 
 if __name__ == '__main__':
@@ -304,7 +303,7 @@ if __name__ == '__main__':
     # Mock command-line arguments 
     sys.argv = [
     'iw_inference_and_vis.py',
-    '--cfg_file', 'cfgs/models/kitti/VirConv-T-IW-DS-8.yaml',                                               #for iw_custom_data
+    '--cfg_file', 'cfgs/models/kitti/VirConv-T-IW-DS-9.yaml',                                               #for iw_custom_data
     # '--cfg_file', '/home/user/workspace/tools/cfgs/models/kitti/VirConv-T-Debug.yaml',                    #for kitti_reference_data
     '--batch_size', '1',
     '--workers', '0'
@@ -313,7 +312,7 @@ if __name__ == '__main__':
     print(args)
 
     ##### Change if you use kitti/ iw_data
-    log_dir = 'inference_logs/iw_data8' 
+    log_dir = 'inference_logs/iw_data9' 
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_inference.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
