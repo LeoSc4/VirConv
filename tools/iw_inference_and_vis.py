@@ -200,10 +200,10 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     # Get the predicted BBoxes in camera coordinate frame
     # create copy to not overwrite the original annos
     annos_for_all_frames_kitti_cam = deepcopy(annos_for_all_frames) 
-    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_8.json"
+    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_8.json"       #defined in omniverse isaac sim default camera convention
 
     # Get the camera extrinsics for all frames 
-    Tr_cam_transform_matrices = get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
+    Tr_cam_transform_matrices = get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
 
     annos_for_all_frames_sim_world = []
 

@@ -2,19 +2,19 @@ import json
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-def get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path):
-    # get kitti camera pose (not omniverse default camera convention) in omniverse world coordinate frame
-    with open(kitti_cam_pose_omnv_world_path) as f:
-        kitti_cam_poses_omnv_world = json.load(f)
+def get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path):
+    # get omniverse default convention camera pose in omniverse world coordinate frame
+    with open(omnv_def_cam_pose_omnv_world_path) as f:
+        omnv_def_cam_poses_omnv_world = json.load(f)
 
-    kitti_cam_positions = kitti_cam_poses_omnv_world['camera_positions']
-    kitti_cam_rotations = kitti_cam_poses_omnv_world['camera_rotations']
+    omnv_def_cam_positions = omnv_def_cam_poses_omnv_world['camera_positions']
+    omnv_def_cam_rotations = omnv_def_cam_poses_omnv_world['camera_rotations']
 
     cam_transform_matrices = []
 
-    for frame in range(len(kitti_cam_positions)):
-        position = kitti_cam_positions[frame]
-        rotation_deg = kitti_cam_rotations[frame]  # [pitch, yaw, roll] in degrees
+    for frame in range(len(omnv_def_cam_positions)):
+        position = omnv_def_cam_positions[frame]
+        rotation_deg = omnv_def_cam_rotations[frame]  # [pitch, yaw, roll] in degrees
 
         # Convert from degree to radian: Assumed order = roll, pitch, yaw (== xyz order)
         rotation = R.from_euler('xyz', np.radians(rotation_deg), degrees=False)
@@ -25,10 +25,18 @@ def get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path):
         T[:3, :3] = rot_matrix
         T[:3, 3] = position
 
+        # Add transformation of the kitti camera (y down, z forward) to the omniverse def camera (y up, z backwards)
+        Tr_kitti_cam_to_omni_world = np.eye(4)
+        Tr_kitti_cam_to_omni_world[1, 1] = -1
+        Tr_kitti_cam_to_omni_world[2, 2] = -1
+
+        # Get the transformation matrix from KITTI camera to Omniverse world coordinates
+        Tr_kitti_cam_to_omni_world = T @ Tr_kitti_cam_to_omni_world
+
         frame_id = f"{frame:06d}"  #add the frame id to the dictionary. Assumption: frame id is the index of the frame in the list (dataset generation corresponds to the defined camera trajectory)
 
         cam_transform_matrices.append({
-            "Tr_kitti_cam_to_omni_world": T, 
+            "Tr_kitti_cam_to_omni_world": Tr_kitti_cam_to_omni_world, 
             "frame_id": frame_id
         })    
 
@@ -135,10 +143,10 @@ if __name__ == "__main__":
     # load kitti camera pose in omniverse world coordinate frame from json file 
     # Path:'/workspace/tools/workspace/camera_poses.json'
 
-    kitti_cam_pose_omnv_world_path = '/workspace/tools/workspace/camera_poses.json'
+    omnv_def_cam_pose_omnv_world_path = '/workspace/tools/workspace/camera_poses.json'
     pred_bbox_pose_kitti_cam_path = '/workspace/tools/workspace/mocked_pred_boxes.csv'
 
-    cam_transform_matrices = get_camera_pose_omnv_world(kitti_cam_pose_omnv_world_path)
+    cam_transform_matrices = get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path)
 
 
     ####### Currently mocked data and only for one frame #######
