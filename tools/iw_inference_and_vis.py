@@ -1,17 +1,19 @@
 import sys
 import os
 import argparse
-from pathlib import Path
 
 import numpy as np
 import torch
 
+from pathlib import Path
+
+from copy import deepcopy
 from pcdet.config import cfg, log_config_to_file, cfg_from_yaml_file
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network, load_data_to_gpu
-from pcdet.utils import common_utils
 
 from tools.visual_utils import vis_utils_ls
+from pcdet.utils import common_utils
 from tools.visualization.iw_vis import visualize_scene, load_kitti_labels_in_velo
 from tools.visual_utils.vis_utils_ls import load_kitti_calib
 
@@ -19,8 +21,7 @@ from tools.workspace.pose_reconstruction_omnv import get_camera_pose_omnv_world
 from tools.workspace.pose_reconstruction_omnv import reconstruct_bbox_pose_omnv_world
 from tools.workspace.pose_reconstruction_omnv import map_class_name
 from tools.workspace.pose_reconstruction_omnv import get_asset_path_omnv
-
-from copy import deepcopy
+from tools.workspace.bbox_sim_post_processing_section_overlaps import section_overlaps_post_processing
 
 import datetime
 import warnings
@@ -260,7 +261,40 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
         
         logger.info(f"Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world}") 
 
+    print("------------ Starting POST PROCESSING of predicted BB for section overlaps -------------")
+    
+    csv_output_path_BB_SIM_world_POST_PROCESSED = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf_POST_PROCESSED.csv'
+    
+    sim_bboxes_post_processed = section_overlaps_post_processing(csv_output_path_BB_SIM_world, iou_threshold=0.1) #section overlaps post processing with iou threshold of 0.1
+    
+    with open(csv_output_path_BB_SIM_world_POST_PROCESSED, 'w') as f:      
 
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id, bbox_pp_idx, asset_path\n') #toggle based on usage 
+        
+        for sim_bbox_ppcd in sim_bboxes_post_processed:       
+            # for bbox_idx in range(len(sim_bboxes_post_processed[0]['name'])):
+            f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %06d, %s, %s\n' % (
+                    sim_bbox_ppcd['name'],
+                    sim_bbox_ppcd['truncated'],
+                    sim_bbox_ppcd['occluded'],
+                    sim_bbox_ppcd['alpha'],
+                    sim_bbox_ppcd['u1'], sim_bbox_ppcd['v1'],
+                    sim_bbox_ppcd['u2'], sim_bbox_ppcd['v2'],
+                    sim_bbox_ppcd['h'], sim_bbox_ppcd['w'], sim_bbox_ppcd['l'],
+                    sim_bbox_ppcd['x_sim_world'], sim_bbox_ppcd['y_sim_world'], sim_bbox_ppcd['z_sim_world'],
+                    sim_bbox_ppcd['rotation_z_sim'], 
+                    sim_bbox_ppcd['score'], 
+                    sim_bbox_ppcd['frame_id'],
+                    sim_bbox_ppcd['bbox_idx'],
+                    sim_bbox_ppcd['asset_path']
+            ))
+        
+        print("Amount of post-processed bboxes: ", len(sim_bboxes_post_processed))
+        
+        logger.info(f"POST PROCESSED Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world_POST_PROCESSED}") 
+  
+    
+    
     print("------------ Starting Visualization -------------")
     for i in range(len(inference_dataset)):
         selected_frame = inference_dataset[i]['frame_id']
