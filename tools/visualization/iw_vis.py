@@ -15,7 +15,7 @@ def load_kitti_labels_in_velo(label_path, calib_path):
     Returns:
         bboxes: List of dictionaries containing bbox info for each object (in Velodyne CF) 
     """
-    bboxes = []
+    bboxes_velo = []
 
     with open(label_path, 'r') as f:
         lines = f.readlines()
@@ -50,15 +50,68 @@ def load_kitti_labels_in_velo(label_path, calib_path):
         rotation_y_velo = np.pi - rotation_y  # Convert from camera frame to lidar frame
 
         # Store the bbox information
-        bboxes.append({
+        bboxes_velo.append({
             'type': obj_type,
             'bbox_2d': [u1, v1, u2, v2],
             'dimensions': size, 
             'location': center_velo, 
             'rotation_y': rotation_y_velo,
             })
-    return bboxes
+        
+    return bboxes_velo
 
+
+def load_kitti_labels_in_cam(label_path): 
+    """
+    Load KITTI label file and 2D and 3D BBox information in KITTI camera CF
+    Args:
+        label_path: Path to the KITTI label file
+    Returns:
+        bboxes: List of dictionaries containing bbox info for each object (in Velodyne CF) 
+    """
+    bboxes_cam = []
+
+    # get current frame_id from label_path 
+    # typical path= '/workspace/data/kitti/training/label_2/000000.txt'
+    frame_id = label_path.split('/')[-1].split('.')[0].zfill(6) # Extract the frame ID from the file name
+
+    with open(label_path, 'r') as f:
+        lines = f.readlines()
+    
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 15:  # Basic validation
+            continue
+            
+        # KITTI format: type truncated occluded alpha x1 y1 x2 y2 h w l x y z rotation_y [score]
+        obj_type = parts[0]
+        # Skip DontCare labels
+        if obj_type == 'DontCare':
+            continue
+    
+
+        # 2D bounding box parameters
+        u1, v1, u2, v2 = float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])
+
+        # 3D bounding box parameters
+        center = np.array([float(parts[11]), float(parts[12]), float(parts[13]), 1.0]) #x, y, z         
+        rotation_y = float(parts[14])  # Rotation around Y-axis
+        
+        size = [float(parts[9]), float(parts[10]), float(parts[8])]  # width, length, height
+        
+        center_cam = [center[0], center[1], center[2]]      # /2 -> changed starting from dataset 8: using the center of the min and max x,y,z from the 3D bounding box instead of assuming the center is at 0
+        
+        # Store the bbox information
+        bboxes_cam.append({
+            'type': obj_type,
+            'bbox_2d': [u1, v1, u2, v2],
+            'dimensions': size, 
+            'location': center_cam, 
+            'rotation_y': rotation_y,
+            'frame_id': frame_id,  
+            })
+        
+    return bboxes_cam
 
 def create_bounding_box(label): 
     dimensions = np.array(label['dimensions'])
@@ -78,7 +131,7 @@ def visualize_scene(points, gt_labels=None, predicted_bboxes=None, selected_fram
     Visualize the scene with Open3D. Labels must be in the velodyne cf (of points) before creating bounding boxes.
     """
 
-    filter_point_cloud_by_range = True
+    filter_point_cloud_by_range = False
 
     if filter_point_cloud_by_range:
         point_cloud_range = [0, -16, -3, 16, 16, 1]        #[0, -40, -3, 70.4, 40, 1] 

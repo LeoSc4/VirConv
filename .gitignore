@@ -46,3 +46,6 @@ start_docker_user.sh
 build_docker_user.sh
 tools/workspace/camera_poses.json
 tools/workspace/mocked_pred_boxes.csv
+tools/workspace/mocked_omnv_sim_pred_boxes_20250411.csv
+tools/workspace/ADTC_asset_placement_trolley_baseScript.py
+tools/eval_logs/
