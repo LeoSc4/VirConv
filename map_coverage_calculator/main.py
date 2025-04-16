@@ -31,9 +31,9 @@ def main():
 
     # Camera model
     focal_length = 18.5  # mm
-    horizontal_aperture = 20.955  # mm
-    vertical_aperture = 15.2908  # mm
-    h = 1.45  # height of camera
+    horizontal_aperture = 36.0  # mm
+    vertical_aperture = 10.42  # mm
+    h = 1.45  # height of camera in m
 
     horizonal_fov = 2 * np.arctan(horizontal_aperture / (2 * focal_length))        # original =65 * np.pi / 180
     
