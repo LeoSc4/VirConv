@@ -39,7 +39,8 @@ class CameraCone:
         y_origin = template.shape[0]
         max_distance = self.z_max * self.resolution
         min_distance = self.z_min * self.resolution
-        fov_slope = y_origin / x_origin                 # Angle between the legs of the FOV 
+        #  Steigung der FoV-Lines (tan(hfov/2))
+        slope = np.tan(self.hfov / 2)
 
         # Iterate through each pixel in the template
         for y_pixel in range(template.shape[0]):
@@ -47,12 +48,12 @@ class CameraCone:
                 # Centering wrt to origin  (camera origin instead of map origin)
                 x = x_pixel - x_origin
                 y = y_origin - y_pixel
-                distance = np.sqrt(x**2 + y**2) #of picel to the camera origin
                 if (
-                    y >= abs(x * fov_slope)         # Check if pixel inside the FoV (left and right corner of the camera)
-                    and distance <= max_distance    
-                    and distance >= min_distance
-                ):
+                y >= min_distance and
+                y <= max_distance and
+                abs(x) <= y * slope  # Punkt liegt im Dreieck
+                 ):
+                
                     # Mark template with 1 for visualization and add to visible points
                     template[y_pixel, x_pixel] = 1
                     visible_points.append((x, y))

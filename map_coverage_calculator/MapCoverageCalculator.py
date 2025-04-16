@@ -143,17 +143,6 @@ class MapCoverageCalculator:
             image_T_point = image_T_camera @ point
             ix, iy = int(image_T_point[0]), int(image_T_point[1])
             
-            # print(f"Image_T_point (pixel): x={ix}, y={iy}")
-
-            # if not self.check_in_bounds(image_T_point):
-            #     print("Out of bounds:", image_T_point)
-            # elif not self.check_in_localization(image_T_point):
-            #     print("Outside localization region:", image_T_point)
-            # elif not self.check_obstacle(image_T_point):
-            #     print("Not an obstacle / valid point:", self.map_rgb[iy, ix])
-            # else:
-            #     print("Visible + inside region + valid pixel")
-
             if self.check_in_bounds(image_T_point) and self.check_obstacle(image_T_point):
                 current_pose_viewer = cv2.circle(
                     current_pose_viewer,
