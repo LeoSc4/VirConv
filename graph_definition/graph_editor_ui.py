@@ -219,8 +219,8 @@ class GraphEditor(QWidget):
             return
 
         # Create graph_output directory if it doesn't exist
-        # output_dir = os.path.join(os.getcwd(), "graph_output")
-        output_dir = os.path.join('/workspace/graph_definition_UI', "graph_output")
+        output_dir = os.path.join(os.getcwd(), "graph_output")
+        # output_dir = os.path.join('/workspace/graph_definition', "graph_output")
         os.makedirs(output_dir, exist_ok=True)
 
         # Suggest default file name
@@ -265,8 +265,25 @@ class GraphEditor(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Saving failed:\n{str(e)}")
 
+def get_graph_file_path():
+    app = QApplication(sys.argv)
+    editor = GraphEditor(map_scale=0.05)
+    editor.show()
+    app.exec_()
+
+    # Load latest saved file from graph_output     
+    output_dir = os.path.join(os.getcwd(), "graph_output")
+    latest_file = max(
+        [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith(".json")],
+        key=os.path.getmtime
+    )
+    return latest_file
 
 def main():
+
+    ### To Do:      Define Input and Output paths for the pipeline ###
+
+
     app = QApplication(sys.argv)
     ex = GraphEditor(map_scale=0.05)
     ex.show()
