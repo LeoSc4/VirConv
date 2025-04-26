@@ -117,6 +117,11 @@ def reconstruct_bbox_pose_omnv_world(cam_transform_matrices, pred_bbox_center_ki
             # Print the transformed bounding box poses
             print(f"Bbox pose in omniverse world coordinates: \n{bbox_center_omnv_world}")
 
+    # Error check: If bbox_center_omnv_world is empty, print the current_frame_id
+    if bbox_center_omnv_world is None:
+        print(f"Error: bbox_center_omnv_world is empty for frame_id: {current_frame_id}")
+        return None
+
     return bbox_center_omnv_world
 
 def map_class_name(name_kitti): 
