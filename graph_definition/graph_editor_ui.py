@@ -37,6 +37,14 @@ class GraphEditor(QWidget):
     def __init__(self, map_scale=0.1):
         super().__init__()
         self.map_scale = map_scale
+        self.roi_mode = False
+        self.roi_top_left = None 
+        self.roi_bottom_right = None
+        self.roi_rect_item = None
+
+        self.roi_preview_rect_item = None  
+        self.is_setting_top_left = True    # control for top-left and bottom-right points of roi rect
+
         self.initUI()
 
     def initUI(self):
@@ -58,7 +66,11 @@ class GraphEditor(QWidget):
         self.load_button.clicked.connect(self.loadImage)
         self.layout.addWidget(self.load_button)
 
-        self.draw_button = QPushButton('Draw Mode', self)
+        self.roi_button = QPushButton('Set RoI for ADTC', self)
+        self.roi_button.clicked.connect(self.toggleRoiMode)
+        self.layout.addWidget(self.roi_button)
+
+        self.draw_button = QPushButton('Set Graph for Camera Trajectory', self)
         self.draw_button.clicked.connect(self.toggleDrawMode)
         self.layout.addWidget(self.draw_button)
 
@@ -66,10 +78,9 @@ class GraphEditor(QWidget):
         self.clear_button.clicked.connect(self.clearAllCurves)
         self.layout.addWidget(self.clear_button)
 
-        self.save_button = QPushButton('Save Curves', self)
+        self.save_button = QPushButton('Save Graph and RoI', self)
         self.save_button.clicked.connect(self.saveCurves)  # Connect to saveCurves method
         self.layout.addWidget(self.save_button)
-
 
         self.label = QLabel(self)
         self.layout.addWidget(self.label)
@@ -84,9 +95,13 @@ class GraphEditor(QWidget):
 
         self.setLayout(self.layout)
 
+        self.view.setMouseTracking(True)  # <-- Neu: Mausbewegung aktivieren
+        self.setMouseTracking(True)       # <-- Falls du auch im ganzen Fenster Mausbewegung tracken willst
+
+
         # Create an off-screen buffer for drawing
         self.offscreen_pixmap = None
-        self.view.mouseMoveEvent = self.updateCursorPosition
+        # self.view.mouseMoveEvent = self.updateCursorPosition
 
     def updateCursorPosition(self, event):
         # Get the cursor position in view coordinates
@@ -95,6 +110,41 @@ class GraphEditor(QWidget):
         cursor_pos_image = self.view.mapToScene(cursor_pos_view)
         # Display the cursor position in pixels
         self.cursor_position_label.setText(f'Cursor Position: ({cursor_pos_image.x():.2f}, {cursor_pos_image.y():.2f})')
+
+    # def mouseMoveEvent(self, event):
+    #     # Get the cursor position in view coordinates
+    #     cursor_pos_view = event.pos()
+    #     # Map the cursor position to image coordinates
+    #     cursor_pos_image = self.view.mapToScene(cursor_pos_view)
+    #     self.cursor_position_label.setText(
+    #         f'Cursor Position: ({int(cursor_pos_image.x())}, {int(cursor_pos_image.y())})'
+    #     )
+        
+    def mouseMoveEvent(self, event):
+        cursor_pos_view = event.pos()
+        cursor_pos_image = self.view.mapToScene(cursor_pos_view)
+        self.cursor_position_label.setText(
+            f'Cursor Position: ({int(cursor_pos_image.x())}, {int(cursor_pos_image.y())})'
+        )
+
+        # --- Dynamische ROI-Vorschau zeichnen ---
+        if self.roi_mode and self.roi_top_left:
+            x1, y1 = self.roi_top_left
+            x2, y2 = int(cursor_pos_image.x()), int(cursor_pos_image.y())
+
+            rect = QtGui.QPolygonF([
+                QPointF(x1, y1), QPointF(x2, y1),
+                QPointF(x2, y2), QPointF(x1, y2),
+                QPointF(x1, y1)
+            ])
+
+            if self.roi_preview_rect_item:
+                self.scene.removeItem(self.roi_preview_rect_item)
+
+            roi_pen = QPen(Qt.green)
+            roi_pen.setStyle(Qt.DashLine)  # Vorschau gestrichelt
+            roi_pen.setWidth(2)
+            self.roi_preview_rect_item = self.scene.addPolygon(rect, roi_pen)
 
     def loadImage(self):
         options = QtWidgets.QFileDialog.Options()
@@ -113,16 +163,27 @@ class GraphEditor(QWidget):
     def toggleDrawMode(self):
         self.draw_mode = not self.draw_mode
         if self.draw_mode:
-            self.label.setText('Draw Mode: ON')
+            self.label.setText('Set Graph for Camera Trajectory:: ON')
         else:
-            self.label.setText('Draw Mode: OFF')
+            self.label.setText('Set Graph for Camera Trajectory:: OFF')
 
     def clearAllCurves(self):
         self.drawn_curves, self.current_curve = [], []
         self.offscreen_pixmap.fill(Qt.transparent)
+
+        # Keep reference before clearing
+        if self.roi_rect_item:
+            self.scene.removeItem(self.roi_rect_item)
+            self.roi_rect_item = None  # prevent segmentation fault
+
         self.scene.clear()
         self.scene.addPixmap(self.pixmap)
-        self.label.setText('Draw Mode: OFF')
+
+        # Draw RoI new if existent
+        self.restoreRoIifExists()
+
+        self.label.setText('Set Graph for Camera Trajectory: OFF')
+
 
     def drawPoints(self, event):
         if self.draw_mode and self.image_path:
@@ -160,45 +221,112 @@ class GraphEditor(QWidget):
             self.scene.addPixmap(self.pixmap)
             self.scene.addPixmap(self.offscreen_pixmap)
 
-
+            self.restoreRoIifExists()
          
     def mousePressEvent(self, event):
-        if self.draw_mode and self.image_path:
-            if event.button() == Qt.LeftButton:
-                view_pos = self.view.mapFromGlobal(event.globalPos())
-                scene_pos = self.view.mapToScene(view_pos)
-                x2, y2 = scene_pos.x(), scene_pos.y()
+        if self.image_path:
+            if self.roi_mode:
+                if event.button() == Qt.LeftButton:
+                    view_pos = self.view.mapFromGlobal(event.globalPos())
+                    scene_pos = self.view.mapToScene(view_pos)
+                    x, y = scene_pos.x(), scene_pos.y()
 
-                if not self.current_curve:
-                    # First click -> set start pose
-                    self.start_pose = (x2, y2, 0)  # default theta = 0
-                    self.current_curve.append(self.start_pose)
+                    if self.is_setting_top_left:
+                        # Setze Top Left
+                        self.roi_top_left = (int(x), int(y))
+                        self.is_setting_top_left = False
+                        self.label.setText('ROI Mode: Click Bottom Right Corner')
+                        print(f"Top-left of ROI set at ({x}, {y})")
+                    else:
+                        # Setze Bottom Right
+                        self.roi_bottom_right = (int(x), int(y))
+                        print(f"Bottom-right of ROI set at ({x}, {y})")
 
-                    # Visualize small green point for start
+                        # Vollständiges Rechteck zeichnen
+                        if self.roi_rect_item:
+                            self.scene.removeItem(self.roi_rect_item)
+                        if self.roi_preview_rect_item:
+                            self.scene.removeItem(self.roi_preview_rect_item)
+
+                        x1, y1 = self.roi_top_left
+                        x2, y2 = self.roi_bottom_right
+
+                        rect = QtGui.QPolygonF([
+                            QPointF(x1, y1), QPointF(x2, y1),
+                            QPointF(x2, y2), QPointF(x1, y2),
+                            QPointF(x1, y1)
+                        ])
+
+                        roi_pen = QPen(Qt.green)
+                        roi_pen.setWidth(2)
+                        self.roi_rect_item = self.scene.addPolygon(rect, roi_pen)
+
+                        self.roi_mode = False
+                        self.is_setting_top_left = True
+                        self.label.setText('ROI Mode: OFF')
+
+                        self.roi_preview_rect_item = None
+
+            elif self.draw_mode:
+                if event.button() == Qt.LeftButton:
+                    view_pos = self.view.mapFromGlobal(event.globalPos())
+                    scene_pos = self.view.mapToScene(view_pos)
+                    x2, y2 = scene_pos.x(), scene_pos.y()
+
+                    if not self.current_curve:
+                        # First click -> set start pose
+                        self.start_pose = (x2, y2, 0)  # default theta = 0
+                        self.current_curve.append(self.start_pose)
+
+                        # Visualize small green point for start
+                        r = 4
+                        self.scene.addEllipse(x2 - r, y2 - r, 2*r, 2*r, QPen(Qt.green), QBrush(Qt.green))
+                        return
+
+                    # Compute orientation based on previous point
+                    x1, y1, theta_1 = self.current_curve[-1]
+                    dy = y1 - y2
+                    dx = x2 - x1
+                    theta_2 = 180 - math.degrees(math.atan2(dx, dy))
+
+                    # Add the point to the current curve
+                    self.current_curve.append((x2, y2, theta_2))
+
+                    # Visualize clicked node as red circle
                     r = 4
-                    self.scene.addEllipse(x2 - r, y2 - r, 2*r, 2*r, QPen(Qt.green), QBrush(Qt.green))
-                    return
+                    self.scene.addEllipse(x2 - r, y2 - r, 2*r, 2*r, QPen(Qt.blue), QBrush(Qt.blue))
 
-                # Compute orientation based on previous point
-                x1, y1, theta_1 = self.current_curve[-1]
-                dy = y1 - y2
-                dx = x2 - x1
-                theta_2 = 180 - math.degrees(math.atan2(dx, dy))
+                    # Draw the path
+                    self.drawPoints(event)
 
-                # Add the point to the current curve
-                self.current_curve.append((x2, y2, theta_2))
+                    # Save the curve to the list
+                    self.drawn_curves.append(self.current_curve.copy())
 
-                # Visualize clicked node as red circle
-                r = 4
-                self.scene.addEllipse(x2 - r, y2 - r, 2*r, 2*r, QPen(Qt.blue), QBrush(Qt.blue))
+    def toggleRoiMode(self):
+        self.roi_mode = not self.roi_mode
+        self.is_setting_top_left = True  # Immer neu anfangen
+        if self.roi_mode:
+            self.label.setText('ROI Mode: Click Top Left Corner')
+        else:
+            self.label.setText('ROI Mode: OFF')
 
-                # Draw the path
-                self.drawPoints(event)
+    def restoreRoIifExists(self):
+        if self.roi_top_left and self.roi_bottom_right:
+            x1, y1 = self.roi_top_left
+            x2, y2 = self.roi_bottom_right
 
-                # Save the curve to the list
-                self.drawn_curves.append(self.current_curve.copy())
+            rect = QtGui.QPolygonF([
+                QPointF(x1, y1), QPointF(x2, y1),
+                QPointF(x2, y2), QPointF(x1, y2),
+                QPointF(x1, y1)
+            ])
 
-            
+            roi_pen = QPen(Qt.green)
+            roi_pen.setWidth(2)
+
+            # WICHTIG: Neu zeichnen und neue Referenz speichern
+            self.roi_rect_item = self.scene.addPolygon(rect, roi_pen)
+          
 
     def createPoly(self, rec_x, rec_y, rec_theta, rec_width, rec_height):
         polygon = QtGui.QPolygonF() 
@@ -210,7 +338,6 @@ class GraphEditor(QWidget):
 
         return polygon
     
-
     def saveCurves(self):
         print("Start saving graph...")
 
@@ -219,12 +346,12 @@ class GraphEditor(QWidget):
             return
 
         # Create graph_output directory if it doesn't exist
-        output_dir = os.path.join(os.getcwd(), "graph_output/base_graph_from_human_input")
+        output_dir = os.path.join(os.getcwd(), "graph_definition/graph_output/base_graph_from_human_input")
         # output_dir = os.path.join('/workspace/graph_definition', "graph_output")
         os.makedirs(output_dir, exist_ok=True)
 
         # Suggest default file name
-        default_filename = os.path.join(output_dir, "graph")
+        default_filename = os.path.join(output_dir, "graph_and_roi")
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save Graph JSON", default_filename, "JSON Files (*.json)"
         )
@@ -249,12 +376,34 @@ class GraphEditor(QWidget):
         # Build list of nodes
         nodes = [{"x_pixel": int(x), "y_pixel": int(y)} for x, y, _ in self.current_curve]
 
+        if self.roi_top_left and self.roi_bottom_right:
+            x1, y1 = self.roi_top_left
+            x2, y2 = self.roi_bottom_right
+
+            top_left = [min(x1, x2), min(y1, y2)]
+            bottom_right = [max(x1, x2), max(y1, y2)]
+            width = bottom_right[0] - top_left[0]
+            height = bottom_right[1] - top_left[1]
+            area = width * height
+
+            roi_data = {
+                "map_relative_path": "map_coverage_calculator/occupancy_grid.png",
+                "top_left": top_left,
+                "bottom_right": bottom_right,
+                "area": area
+            }
+        else:
+            QMessageBox.warning(self, "Error", "No ROI defined!")
+            return
+
         # JSON structure
         graph_data = {
             "output_dir": output_dir,
             "node_count": node_count,
             "graph_length_meters": round(graph_length, 2),
-            "nodes": nodes
+            "nodes": nodes,
+            "roi": roi_data
+
         }
 
         # Save file
@@ -280,10 +429,7 @@ def get_graph_file_path():
     return latest_file
 
 def main():
-
-    ### To Do:      Define Input and Output paths for the pipeline ###
-
-
+    
     app = QApplication(sys.argv)
     ex = GraphEditor(map_scale=0.05)
     ex.show()

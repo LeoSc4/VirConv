@@ -20,21 +20,96 @@ def load_graph_nodes(json_path: str) -> List[Tuple[float, float, float]]:
         data = json.load(f)
     return [(node['x_pixel'], node['y_pixel']) for node in data['nodes']]
 
+def load_graph_and_roi(json_graph_path: str):
+    with open(json_graph_path, 'r') as f:
+        graph_data = json.load(f)
+    roi_data = graph_data["roi"]
+    region_info = [roi_data["top_left"], roi_data["bottom_right"], roi_data["area"]]
+
+    # Convert dicts in tuples
+    nodes = [(node["x_pixel"], node["y_pixel"]) for node in graph_data["nodes"]]
+
+    return nodes, region_info
+
+def interpolate_graph_nodes(
+    nodes: List[Tuple[int, int]],
+    map_scale: float,
+    max_distance_m: float = 2.0,
+    min_distance_m: float = 0.5,
+    max_interpolations_per_edge: int = 10
+) -> List[Tuple[int, int]]:
+    """
+    Interpolates additional nodes along edges between given nodes based on distance in meters.
+
+    Args:
+        nodes: List of (x_pixel, y_pixel) nodes.
+        map_scale: Map scale in meters per pixel (e.g., 0.05 for 5 cm/px).
+        max_distance_m: Maximum allowed distance between nodes (in meters).
+        min_distance_m: Minimum allowed distance between nodes (in meters).
+        max_interpolations_per_edge: Max interpolated points per edge.
+
+    Returns:
+        List of (x_pixel, y_pixel) nodes including interpolated nodes.
+    """
+
+    interpolated_nodes = []
+
+    # Convert distance thresholds from meters to pixels
+    max_distance_px = max_distance_m / map_scale
+    min_distance_px = min_distance_m / map_scale
+
+    for i in range(len(nodes) - 1):
+        start = np.array(nodes[i])
+        end = np.array(nodes[i + 1])
+        edge_vector = end - start
+        edge_length = np.linalg.norm(edge_vector)
+
+        if edge_length == 0:
+            continue  # Avoid division by zero
+
+        # Calculate how many interpolations are needed
+        num_interpolations = int(edge_length // max_distance_px)
+
+        if num_interpolations > max_interpolations_per_edge:
+            num_interpolations = max_interpolations_per_edge
+
+        interpolated_nodes.append(tuple(start.tolist()))  # Add start node
+
+        if num_interpolations > 0:
+            for j in range(1, num_interpolations + 1):
+                fraction = j / (num_interpolations + 1)
+                interpolated_point = start + fraction * edge_vector
+                interpolated_nodes.append(tuple(interpolated_point.tolist()))
+
+    # Add the final node
+    interpolated_nodes.append(tuple(nodes[-1]))
+
+    # Filter nodes that are too close to each other (closer than min_distance)
+    filtered_nodes = [interpolated_nodes[0]]
+    for node in interpolated_nodes[1:]:
+        last_node = np.array(filtered_nodes[-1])
+        current_node = np.array(node)
+        if np.linalg.norm(current_node - last_node) >= min_distance_px:
+            filtered_nodes.append(node)
+
+    return filtered_nodes
+
 def compute_tangent_angle(node1: Tuple[int, int], node2: Tuple[int, int]) -> float:
     dx = node2[0] - node1[0]
     dy = node2[1] - node1[1]
 
     angle_rad = math.atan2(dy, dx)
     angle_deg = math.degrees(angle_rad)
-    return angle_deg % 360 # Normalize to [0, 360)
+    return angle_deg % 360 # Normalize to [0, 360]
 
 def generate_orientations_per_node(tangent_angle: float): 
     orientations = [
-        tangent_angle,                          # Tangent
+        tangent_angle,                        
         (tangent_angle + 45) % 360,             
-        (tangent_angle - 45) % 360,             
+        (tangent_angle - 45) % 360,
         (tangent_angle + 135) % 360,            
         (tangent_angle - 135) % 360             
+        (tangent_angle -180) % 360,           
     ]
     return orientations
 
@@ -88,7 +163,6 @@ def run_greedy_set_cover_with_visualization(
         )
 
         # Map position from world meter values to pixel values 
-
         pos_pixel = [p * resolution for p in pos]
 
         transform = {
@@ -109,10 +183,9 @@ def run_greedy_set_cover_with_visualization(
 
     top_left, bottom_right = region_info[0], region_info[1]
     total_area = (bottom_right[0] - top_left[0]) * (bottom_right[1] - top_left[1])     # dynamic calculation as area from region_info[2] can be outdated
-    step = 0
+    step = 0   
 
-    
-
+    # II. Greedy Set Cover Algorithm
     camera_selection_order = {}
     while len(covered) / total_area < coverage_threshold and remaining_candidates:
         # Choose the best candidate 
@@ -131,7 +204,6 @@ def run_greedy_set_cover_with_visualization(
         print(f"  → Selected camera at {pos_pixel} with orientation {orientation}")
         print(f"  → Coverage after selection: {len(covered | improvement) / total_area:.2%} of localization region")
 
-        # print the camera selection order
         print("Camera Selection Order:")
         for idx, covered_pixels in camera_selection_order.items():
             print(f"Camera {idx}: {len(covered_pixels)} new pixels covered")
@@ -192,7 +264,6 @@ def run_greedy_set_cover_with_visualization(
         print(f"Current coverage: {len(covered) / total_area:.2%} of localization region")
 
     print("---------------------- Optimization Process Finished ----------------------")
-    # Print the reason for stopping the optimization process
     if len(covered) / total_area >= coverage_threshold:
         print(f"Coverage threshold of {coverage_threshold:.2%} reached.")
     else:
@@ -222,8 +293,6 @@ def run_greedy_set_cover_with_visualization(
     if final_calc.overlayed_map is not None:
         cv2.imwrite(final_img_path, final_calc.overlayed_map)
         print(f"Final combined coverage image saved to: {final_img_path}")
-
-    # Print the selected camera to a json file in the format: 
     print(" ----------------------------------------------------------------------")
 
     return selected_cameras
@@ -263,6 +332,33 @@ def run_set_cover_with_images(optimizer: CameraCoverageOptimizer, candidate_conf
 
     return optimized_camera_list
 
+def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_output_path: str, resolution: float = 0.05):
+    """
+    Saves the optimized camera list to a JSON file with 'camera_positions' and 'camera_rotations'.
+    """
+    camera_positions = []
+    camera_rotations = []
+    camera_positions_pixel = []
+
+    # convert camera position from pixel to meter values
+
+
+    for cam in optimized_camera_list:
+        camera_positions_pixel.append(cam["position"])
+        camera_positions.append([p * (1 / resolution) for p in cam["position"]])
+        camera_rotations.append(cam["orientation"])
+
+    data = {
+        "camera_positions_pixel": camera_positions_pixel,
+        "camera_positions": camera_positions,
+        "camera_rotations": camera_rotations
+    }
+
+    os.makedirs(os.path.dirname(image_output_path), exist_ok=True)
+    with open(image_output_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+    print(f"Saved optimized cameras to {image_output_path}")
 
 def process_graph(json_path: str, map_scale: float = 0.05 / 1) -> dict:
     
@@ -293,13 +389,13 @@ def process_graph(json_path: str, map_scale: float = 0.05 / 1) -> dict:
     return camera_dict
 
 def run_map_coverage_calculation(camera_dict: dict, path_to_map: str, image_output_path: str):
+    # Standalone test function
     """ 
     Computes map coverage for set of camera poses defined in camera dict. 
     """ 
 
     path_to_map = '../map_coverage_calculator/occupancy_grid.png'
-    region_path = '../map_coverage_calculator/localization_region.json'
-    os.makedirs
+    region_path = '../map_coverage_calculator/roi_for_adtc.json'          #localization_region.json
 
     map_image = cv2.imread(path_to_map) 
     with open(region_path, 'r') as f:
@@ -356,130 +452,27 @@ def run_map_coverage_calculation(camera_dict: dict, path_to_map: str, image_outp
     cv2.destroyAllWindows()
     return absolute_coverage
 
-def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_output_path: str, resolution: float = 0.05):
-    """
-    Saves the optimized camera list to a JSON file with 'camera_positions' and 'camera_rotations'.
-    """
-    camera_positions = []
-    camera_rotations = []
-    camera_positions_pixel = []
-
-    # convert camera position from pixel to meter values
-
-
-    for cam in optimized_camera_list:
-        camera_positions_pixel.append(cam["position"])
-        camera_positions.append([p * (1 / resolution) for p in cam["position"]])
-        camera_rotations.append(cam["orientation"])
-
-    data = {
-        "camera_positions_pixel": camera_positions_pixel,
-        "camera_positions": camera_positions,
-        "camera_rotations": camera_rotations
-    }
-
-    os.makedirs(os.path.dirname(image_output_path), exist_ok=True)
-    with open(image_output_path, 'w') as f:
-        json.dump(data, f, indent=4)
-
-    print(f"Saved optimized cameras to {image_output_path}")
-
-def interpolate_graph_nodes(
-    nodes: List[Tuple[int, int]],
-    map_scale: float,
-    max_distance_m: float = 2.0,
-    min_distance_m: float = 0.5,
-    max_interpolations_per_edge: int = 10
-) -> List[Tuple[int, int]]:
-    """
-    Interpolates additional nodes along edges between given nodes based on distance in meters.
-
-    Args:
-        nodes: List of (x_pixel, y_pixel) nodes.
-        map_scale: Map scale in meters per pixel (e.g., 0.05 for 5 cm/px).
-        max_distance_m: Maximum allowed distance between nodes (in meters).
-        min_distance_m: Minimum allowed distance between nodes (in meters).
-        max_interpolations_per_edge: Max interpolated points per edge.
-
-    Returns:
-        List of (x_pixel, y_pixel) nodes including interpolated nodes.
-    """
-
-    interpolated_nodes = []
-
-    # Convert distance thresholds from meters to pixels
-    max_distance_px = max_distance_m / map_scale
-    min_distance_px = min_distance_m / map_scale
-
-    for i in range(len(nodes) - 1):
-        start = np.array(nodes[i])
-        end = np.array(nodes[i + 1])
-        edge_vector = end - start
-        edge_length = np.linalg.norm(edge_vector)
-
-        if edge_length == 0:
-            continue  # Avoid division by zero
-
-        # Calculate how many interpolations are needed
-        num_interpolations = int(edge_length // max_distance_px)
-
-        if num_interpolations > max_interpolations_per_edge:
-            num_interpolations = max_interpolations_per_edge
-
-        interpolated_nodes.append(tuple(start.tolist()))  # Add start node
-
-        if num_interpolations > 0:
-            for j in range(1, num_interpolations + 1):
-                fraction = j / (num_interpolations + 1)
-                interpolated_point = start + fraction * edge_vector
-                interpolated_nodes.append(tuple(interpolated_point.tolist()))
-
-    # Add the final node
-    interpolated_nodes.append(tuple(nodes[-1]))
-
-    # Optional: Filter nodes that are too close to each other (closer than min_distance)
-    filtered_nodes = [interpolated_nodes[0]]
-    for node in interpolated_nodes[1:]:
-        last_node = np.array(filtered_nodes[-1])
-        current_node = np.array(node)
-        if np.linalg.norm(current_node - last_node) >= min_distance_px:
-            filtered_nodes.append(node)
-
-    return filtered_nodes
-
 
 if __name__ == "__main__":
 
     #set workdir to current workdir
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    # json_graph_path = './graph_output/graph_iw_warehouse.json'
-    json_graph_path = './graph_output/base_graph_from_human_input/iw_warehouse_loop.json' # New from 23.04.12
-    # json_graph_path = './graph_output/base_graph_from_human_input/iw_warehouse_basic_node.json'
+
+    # Load graph and ROI from json file
+    json_graph_path = './graph_output/base_graph_from_human_input/graph_and_roi.json' 
 
     map_image_path = '../map_coverage_calculator/occupancy_grid.png'
-    region_path = '../map_coverage_calculator/localization_region.json' 
+    # region_path = '../map_coverage_calculator/roi_for_adtc.json'          #localization_region.json
     image_output_path = './graph_output/coverage_subsets'
     
-    # camera_dict = process_graph(json_graph_path)
-
-    ## Basic map coverage calculation test 
-    # for node, camera in camera_dict.items():
-    #     print(f"Node {node}: Position: {camera['position']}, Orientations: {camera['orientations']}")
-
-    # map_coverage = run_map_coverage_calculation(camera_dict, path_to_map='../map_coverage_calculator/occupancy_grid.png', image_output_path='./graph_output')
-
 
     ############  Load necessary data ###############
     map_image = cv2.imread(map_image_path)
     image_height = map_image.shape[0]
     image_width = map_image.shape[1]
     
-    with open(region_path, 'r') as f:
-        region_data = json.load(f)
-
-    region_info = [region_data["top_left"], region_data["bottom_right"], region_data["area"]]
-
+    nodes, region_info = load_graph_and_roi(json_graph_path)
 
     resolution = 1 / 0.05  # e.g. 0.05 m/px → 20 px/m
     
@@ -493,15 +486,10 @@ if __name__ == "__main__":
     z_min = height * np.tan(vertical_fov / 2)
     z_max = 16
 
-
     resolution_px_per_m = resolution
     sensor = CameraCone(horizontal_fov, z_min, z_max, resolution_px_per_m)
     _, visible_points = sensor.find_visible_points()
-
-
-    ########### Load graph nodes and generate candidate configurations ###########
-    nodes = load_graph_nodes(json_graph_path)
-    
+   
     # Interpolate nodes to improve coverage and detections
     nodes_interpolated = interpolate_graph_nodes(
         nodes,
@@ -528,7 +516,7 @@ if __name__ == "__main__":
         visible_points=visible_points,
         resolution=resolution,
         image_output_path=image_output_path,
-        coverage_threshold=1.0,
+        coverage_threshold=0.95,                 # Define coverage threshold!
         verbose=False
     )
 
@@ -536,16 +524,6 @@ if __name__ == "__main__":
     output_json_path = os.path.join(output_path, "optimized_cameras.json")
     save_optimized_cameras_to_json(optimized_camera_list, output_json_path, resolution)
 
-    ## Run set cover with visualization saving   (OLD)
-    # optimized_camera_list = run_set_cover_with_images(
-        # optimizer=optimizer,
-        # candidate_configs=candidate_configs,
-        # region_info=region_info,
-        # visible_points=visible_points,
-        # resolution=resolution,
-        # image_output_path=image_output_path,
-        # coverage_threshold=0.95
-    # )
 
     print("------------------- OUTPUT - OPTIMIZED SENSOR SELECTION -------------------")
     print("\Optimized sensor selection :")
