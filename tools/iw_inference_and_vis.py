@@ -201,7 +201,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     # Get the predicted BBoxes in camera coordinate frame
     # create copy to not overwrite the original annos
     annos_for_all_frames_kitti_cam = deepcopy(annos_for_all_frames) 
-    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_8.json"       #defined in omniverse isaac sim default camera convention
+    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_9.json"       #defined in omniverse isaac sim default camera convention
 
     # Get the camera extrinsics for all frames 
     Tr_cam_transform_matrices = get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
@@ -376,7 +376,25 @@ if __name__ == '__main__':
     ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworks-ml/VirConv/runs/5gobr6s1?nw=nwuseredgeai
     # IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv
     # Epoch 30 = 0.63977
-    model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv/ckpt/checkpoint_epoch_30.pth'
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv/ckpt/checkpoint_epoch_30.pth'
+
+
+    ########## Dataset 9 - WITHOUT Augmentor ###########
+    ### BEST RESULT ###     SWP_DS9_No-AUG_krx6i4fc: https://wandb.ai/idealworks-ml/VirConv/runs/r35t9lty/overview
+    # Epoch 51 = 1.945
+    model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_krx6i4fc/ckpt/checkpoint_epoch_51.pth'
+
+    # SWP_DS9_No-AUG_ki1jwmeg: https://wandb.ai/idealworks-ml/VirConv/runs/if3uofa5/overview
+    # Epoch 56 = 2.017
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_ki1jwmeg/ckpt/checkpoint_epoch_56.pth'
+
+    # SWP_DS9_No-AUG_pwsfyw7v: https://wandb.ai/idealworks-ml/VirConv/runs/dzt8y7bg/overview
+    # Epoch 43 = 2.86
+    # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_pwsfyw7v/ckpt/checkpoint_epoch_43.pth'
+
+
+
+
 
 
     ### Change the point cloud range to visualize only a specific are: [x_min, y_min, z_min, x_max, y_max, z_max]

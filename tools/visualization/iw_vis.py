@@ -121,9 +121,9 @@ def create_bounding_box(label):
     bbox.center = location
     bbox.extent = dimensions
     rotation_matrix = o3d.geometry.get_rotation_matrix_from_xyz((0, 0, rotation_y))
-    bbox = bbox.rotate(rotation_matrix, center=bbox.center)
-    bbox.color = [0, 1, 0]
-    return bbox
+    oriented_bbox = bbox.rotate(rotation_matrix, center=bbox.center)
+    oriented_bbox.color = [0, 1, 0] # default is green
+    return oriented_bbox
 
 
 def visualize_scene(points, gt_labels=None, predicted_bboxes=None, selected_frame=None): 
@@ -184,6 +184,14 @@ def visualize_scene(points, gt_labels=None, predicted_bboxes=None, selected_fram
     # Set rendering options
     opt = vis.get_render_option()
     opt.point_size = 2.0 
+ 
+
+    ctr = vis.get_view_control()
+    ctr.set_lookat([0, 0, 2])        
+    ctr.set_front([-1, 0, 0])         # direction along x axis
+    ctr.set_up([0, 0, 1])            # Z nach oben
+    ctr.set_zoom(0.05)  
+    
     vis.run()
     vis.destroy_window()
 
