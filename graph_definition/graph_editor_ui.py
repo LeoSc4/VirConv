@@ -219,7 +219,7 @@ class GraphEditor(QWidget):
             return
 
         # Create graph_output directory if it doesn't exist
-        output_dir = os.path.join(os.getcwd(), "graph_output")
+        output_dir = os.path.join(os.getcwd(), "graph_output/base_graph_from_human_input")
         # output_dir = os.path.join('/workspace/graph_definition', "graph_output")
         os.makedirs(output_dir, exist_ok=True)
 

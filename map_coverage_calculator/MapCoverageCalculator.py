@@ -16,7 +16,7 @@ def rotation_to_yaw(rotation):
 
 
 class MapCoverageCalculator:
-    def __init__(self, resolution, visible_points, image, region_info):
+    def __init__(self, resolution, visible_points, image, region_info, use_log_odds: bool = False):
         # Map Properties
         self.resolution = resolution
         self.map_rgb = image
@@ -26,6 +26,10 @@ class MapCoverageCalculator:
         self.total_mapped_in_roi = 0   # only visible points (excl. obstacles)
         self.visible_in_roi_mask = np.zeros((self.image_height, self.image_width), dtype=bool)
 
+        self.use_log_odds = use_log_odds
+
+        if self.use_log_odds:
+            self.mapped_log_odds = np.zeros((self.image_height, self.image_width))
 
 
         # Camera Properties
@@ -45,11 +49,31 @@ class MapCoverageCalculator:
         self.current_robot_pose = self.previous_robot_pose = None
 
         # Transformation between map to image frame
-        self.image_T_map_matrix = self.transform_to_matrix({
-            "translation": [self.image_width / self.resolution, self.image_height / self.resolution, 0.0],
-            "rotation": [0.0, 0.0, -1.0, 0.0]  # 180 deg rotation around z-axis
-        })
+        # self.image_T_map_matrix = self.transform_to_matrix({
+        #     # "translation": [self.image_width / self.resolution, self.image_height / self.resolution, 0.0],
+        #     # "rotation": [0.0, 0.0, -1.0, 0.0]  # 180 deg rotation around z-axis
 
+        #     #+# DEBUG - Temp Test
+        #     "translation": [0.0, self.image_height / self.resolution, 0.0],  # y-Achse von unten nach oben spiegeln
+        #     "rotation": R.from_euler("z", 180, degrees=True).as_quat().tolist()  # 180° um Z-Achse (Welt → Bild)
+        # })
+
+        scale = 1 / self.resolution  # z.B. 20 px/m bei 0.05 m/px
+
+        # Transformation: Weltkoordinaten (Meter, Z-Achse nach oben) → Bildkoordinaten (Pixel, Y-Achse nach unten)
+        # self.image_T_map_matrix = np.array([
+        #     [ scale,     0,    0,             0],  # x skaliert (keine Spiegelung!)
+        #     [     0, -scale,    0, self.image_height],  # y gespiegelt + verschoben
+        #     [     0,     0,    1,             0],
+        #     [     0,     0,    0,             1]
+        # ])
+
+        self.image_T_map_matrix = np.array([
+            [ 1,     0,    0,             0],  # x skaliert (keine Spiegelung!)
+            [     0, 1,    0, 0],  # y gespiegelt + verschoben
+            [     0,     0,    1,             0],
+            [     0,     0,    0,             1]
+        ])
         # Draw the localization region
         cv2.rectangle(self.map_rgb, self.top_left, self.bottom_right, (0, 255, 0), 2, 8)
 
@@ -58,12 +82,7 @@ class MapCoverageCalculator:
         self.overlayed_map_prob = None
 
     def transform_to_matrix(self, transform):
-
-        # Print the current input transform 
-        print("Transform:", transform)
-
-
-        translation_matrix = np.array(transform["translation"]) * self.resolution
+        translation_matrix = np.array(transform["translation"]) # * self.resolution           #+# DEBUG - Resolution does not have to be multiplied as translation is already in meter 
         rotation_matrix = R.from_quat(transform["rotation"]).as_matrix()
         homogeneous_matrix = np.identity(4)
         homogeneous_matrix[:3, :3] = rotation_matrix[:3, :3]
@@ -85,9 +104,7 @@ class MapCoverageCalculator:
     def check_obstacle(self, point, border_color=(0, 255, 0)):
         x, y = int(point[0]), int(point[1])
         color = self.map_rgb[y, x]
-        return np.all(color >= 200)
-        # obstacle_colors= {np.all(color >= 200), border_color}     #{(255, 255, 255), border_color}
-        # return color in obstacle_colors  # bright areas are rated as free                               
+        return np.all(color >= 200) #interprete all bright pixel as free space -> dark pixel are obstacles
 
 
     def check_motion(self):
@@ -140,14 +157,18 @@ class MapCoverageCalculator:
             1,
             cv2.LINE_AA,
         )
-        print("Mapped pixels:", np.sum(self.mapped_region))
+        # print("Mapped pixels:", np.sum(self.mapped_region))
 
         return image
+    def update_pose(self, map_T_camera_transform, verbose=False):
+        if verbose:
+            print(f"  → Translation (m): {map_T_camera_transform['translation']}")
+            print(f"  → Euler angles (zyx): {R.from_quat(map_T_camera_transform['rotation']).as_euler('zyx', degrees=True)}")
 
-    def update_pose(self, map_T_camera_transform):
         image_T_camera = self.image_T_map_matrix @ self.transform_to_matrix(map_T_camera_transform)
         current_pose_viewer = self.map_rgb.copy()
-        self.current_robot_pose = self.transform_to_matrix(map_T_camera_transform)
+        self.current_robot_pose = image_T_camera  # correct complete pose in image coordinates
+
         robot_moved = self.check_motion()
 
         #Debug 
@@ -166,53 +187,55 @@ class MapCoverageCalculator:
             if not self.visible_in_roi_mask[iy, ix]:
                 self.visible_in_roi_mask[iy, ix] = True
 
+            if not self.mapped_region[iy, ix]:
+                self.mapped_region[iy, ix] = 1
+                self.mapped_pixels += 1
+
             if self.check_obstacle(image_T_point):  # pixel is free space
-                if not self.mapped_region[iy, ix]:
-                    self.mapped_region[iy, ix] = 1
-                    self.mapped_pixels += 1
-                    self.total_mapped_in_roi += 1
+                self.total_mapped_in_roi += 1  # Zählt nur freie Fläche separat
 
-                if robot_moved:
-                    log_odd = visible_point[3]
-                    self.mapped_log_odds[iy, ix] += log_odd
+            if self.use_log_odds and robot_moved and len(visible_point) > 3:
+                log_odd = visible_point[3]
+                self.mapped_log_odds[iy, ix] += log_odd
 
-                # Optional: draw
-                current_pose_viewer = cv2.circle(
-                    current_pose_viewer,
-                    (ix, iy),
-                    1,
-                    (125, 125, 255),
-                    1,
-                )
+            # Optional: draw
+            current_pose_viewer = cv2.circle(
+                current_pose_viewer,
+                (ix, iy),
+                1,
+                (125, 125, 255),
+                1,
+            )
         
-        print(f"Pose done → newly mapped pixels: {self.mapped_pixels - pxls_mapped_before}")
-        print(f"Total mapped pixels: {self.mapped_pixels}")
+        if verbose:
+            print(f"Pose done → newly mapped pixels: {self.mapped_pixels - pxls_mapped_before}")
+            print(f"Total mapped pixels: {self.mapped_pixels}")
 
+        if self.use_log_odds:
+            self.mapped_log_odds = np.clip(self.mapped_log_odds, 0, 7)
+            self.mapped_probabilities = inverse_log_odds(self.mapped_log_odds)
 
-        self.mapped_log_odds = np.clip(self.mapped_log_odds, 0, 7)
-        self.mapped_probabilities = inverse_log_odds(self.mapped_log_odds)
         self.previous_robot_pose = self.current_robot_pose
 
         self.overlayed_map = self.overlay_image(
             self.mapped_region,
             self.map_rgb,
-            f"Coverage: {100 * self.mapped_pixels / self.area:.2f}",
+            f"Coverage: {100 * self.mapped_pixels / self.area:.2f} %",
         )
-
-        self.overlayed_map_prob = self.overlay_image(
-            self.mapped_probabilities,
-            self.map_rgb,
-            f"Coverage: {self.probablistic_coverage(0.7):.2f}, Entropy: {self.calculate_entropy():.2f}",
-        )
-
-        print(f"\nFinal Coverage Report:")
-        print(f"- ROI area (px):                               {self.area}")
-        print(f"- Unique visible points in ROI (incl. obstacles): {np.sum(self.visible_in_roi_mask)}")
-        print(f"- Total free and visible points in ROI:        {self.total_mapped_in_roi}")
-        print(f"- Absolute coverage (free only):               {100 * self.total_mapped_in_roi / self.area:.2f}%")
-        print(f"- Theoretical visibility (incl. obstacles):    {100 * np.sum(self.visible_in_roi_mask) / self.area:.2f}%")
+        if self.use_log_odds:
+            self.overlayed_map_prob = self.overlay_image(
+                self.mapped_probabilities,
+                self.map_rgb,
+                f"Coverage: {self.probablistic_coverage(0.7):.2f}, Entropy: {self.calculate_entropy():.2f}",
+            )
+        if verbose:
+            print(f"\ Coverage Report:")
+            print(f"- Actual mapped coverage (incl. obstacles):    {100 * self.mapped_pixels / self.area:.2f}%")
+            print(f"- Free space coverage only:                    {100 * self.total_mapped_in_roi / self.area:.2f}%")
+            print(f"- Theoretical maximum visibility:              {100 * np.sum(self.visible_in_roi_mask) / self.area:.2f}%")
 
 
         cv2.imshow("Mapped Region", self.overlayed_map)
-        cv2.imshow("Mapped Region Probabilities", self.overlayed_map_prob)
+        if self.use_log_odds:
+            cv2.imshow("Mapped Region Probabilities", self.overlayed_map_prob)
         cv2.waitKey(1)
