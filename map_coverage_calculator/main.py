@@ -6,7 +6,7 @@ from scipy.spatial.transform import Rotation as R
 from map_coverage_calculator.MapCoverageCalculator import MapCoverageCalculator
 from map_coverage_calculator.build_vision_cone import CameraCone
 
-def load_localization_region(json_path):
+def load_roi_for_adtc(json_path):
     with open(json_path, "r") as f:
         region = json.load(f)
         return region["top_left"], region["bottom_right"], region["area"]
@@ -19,7 +19,7 @@ def load_camera_poses(json_path):
 def main():
     # Set paths
     path_to_map = "../map_coverage_calculator/occupancy_grid.png"
-    region_path = "../map_coverage_calculator/localization_region.json"
+    region_path = '../map_coverage_calculator/roi_for_adtc.json'          #localization_region.json
     poses_path = "../map_coverage_calculator/camera_poses.json"
     output_path = "../map_coverage_calculator/output"
 
@@ -27,7 +27,7 @@ def main():
 
     # Load map and region info
     map_image = cv2.imread(path_to_map)
-    top_left, bottom_right, area = load_localization_region(region_path)
+    top_left, bottom_right, area = load_roi_for_adtc(region_path)
 
     # Camera model
     focal_length = 18.5  # mm
