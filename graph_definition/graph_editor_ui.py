@@ -346,8 +346,10 @@ class GraphEditor(QWidget):
             return
 
         # Create graph_output directory if it doesn't exist
-        output_dir = os.path.join(os.getcwd(), "graph_definition/graph_output/base_graph_from_human_input")
-        # output_dir = os.path.join('/workspace/graph_definition', "graph_output")
+        base_dir = os.path.join(os.getcwd(), "graph_output")
+        os.makedirs(base_dir, exist_ok=True)
+
+        output_dir = os.path.join(base_dir, "base_graph_from_human_input")
         os.makedirs(output_dir, exist_ok=True)
 
         # Suggest default file name
@@ -410,6 +412,8 @@ class GraphEditor(QWidget):
         try:
             with open(file_path, 'w') as f:
                 json.dump(graph_data, f, indent=4)
+                f.flush()
+                os.fsync(f.fileno())
             QMessageBox.information(self, "Success", f"Graph saved to:\n{file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Saving failed:\n{str(e)}")
