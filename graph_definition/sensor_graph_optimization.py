@@ -108,8 +108,8 @@ def generate_orientations_per_node(tangent_angle: float):
         (tangent_angle + 45) % 360,             
         (tangent_angle - 45) % 360,
         (tangent_angle + 135) % 360,            
-        (tangent_angle - 135) % 360             
-        (tangent_angle -180) % 360,           
+        (tangent_angle - 135) % 360,             
+        (tangent_angle -180) % 360          
     ]
     return orientations
 
@@ -336,9 +336,9 @@ def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_outp
     """
     Saves the optimized camera list to a JSON file with 'camera_positions' and 'camera_rotations'.
     """
+    camera_positions_pixel = []
     camera_positions = []
     camera_rotations = []
-    camera_positions_pixel = []
 
     # convert camera position from pixel to meter values
 
@@ -346,7 +346,8 @@ def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_outp
     for cam in optimized_camera_list:
         camera_positions_pixel.append(cam["position"])
         camera_positions.append([p * (1 / resolution) for p in cam["position"]])
-        camera_rotations.append(cam["orientation"])
+        cam_orientations_raw = cam["orientation"]
+        camera_rotations.append([90.0, 0.0, cam_orientations_raw[1]]) # 90.0 is the fixed rotation angle
 
     data = {
         "camera_positions_pixel": camera_positions_pixel,
