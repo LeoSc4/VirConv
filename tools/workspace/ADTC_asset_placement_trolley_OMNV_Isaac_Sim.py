@@ -54,8 +54,10 @@ world = World(stage_units_in_meters=1.0)
 # Load the stage
 stage = omni.usd.get_context().get_stage()
 
-sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-11_19-21-23_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
+# sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-11_19-21-23_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
+# sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-12_08-55-44_Inference_ImageSet_predicted bboxes_SIM_world_cf_POST_PROCESSED.csv' # Post processed BBoxes
 
+sim_bbox_infos_path = '/home/leo/workspace/Omniverse/2025-04-12_09-16-18_Inference_ImageSet_predicted bboxes_SIM_world_cf_POST_PROCESSED.csv'
 # For lines in csv except header: 
 # Get the asset path 
 
