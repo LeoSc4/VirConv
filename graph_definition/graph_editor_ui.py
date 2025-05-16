@@ -34,7 +34,7 @@ def get_pix_coords(width, height, x, y, theta):
 
 
 class GraphEditor(QWidget):
-    def __init__(self, map_scale=0.1):
+    def __init__(self, map_scale=0.05):
         super().__init__()
         self.map_scale = map_scale
         self.roi_mode = False
@@ -43,12 +43,15 @@ class GraphEditor(QWidget):
         self.roi_rect_item = None
 
         self.roi_preview_rect_item = None  
-        self.is_setting_top_left = True    # control for top-left and bottom-right points of roi rect
+        self.is_setting_top_left = True     # control for top-left and bottom-right points of roi rect
+
+        self.reference_mode = False         #for "Set Reference Point"
+        self.reference_point = None 
 
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('ADTC - Sensor graph definition')
+        self.setWindowTitle('ADTC - Sensor Graph Trajectory Definition')
         self.setGeometry(1000, 100, 1000, 800)
 
         self.image_path = None
@@ -70,6 +73,10 @@ class GraphEditor(QWidget):
         self.roi_button.clicked.connect(self.toggleRoiMode)
         self.layout.addWidget(self.roi_button)
 
+        self.reference_button = QPushButton('Set Reference Point', self)
+        self.reference_button.clicked.connect(self.toggleReferenceMode)
+        self.layout.addWidget(self.reference_button)
+
         self.draw_button = QPushButton('Set Graph for Camera Trajectory', self)
         self.draw_button.clicked.connect(self.toggleDrawMode)
         self.layout.addWidget(self.draw_button)
@@ -78,7 +85,7 @@ class GraphEditor(QWidget):
         self.clear_button.clicked.connect(self.clearAllCurves)
         self.layout.addWidget(self.clear_button)
 
-        self.save_button = QPushButton('Save Graph and RoI', self)
+        self.save_button = QPushButton('Save Graph, RoI and Reference Point', self)
         self.save_button.clicked.connect(self.saveCurves)  # Connect to saveCurves method
         self.layout.addWidget(self.save_button)
 
@@ -101,7 +108,11 @@ class GraphEditor(QWidget):
 
         # Create an off-screen buffer for drawing
         self.offscreen_pixmap = None
-        # self.view.mouseMoveEvent = self.updateCursorPosition
+        self.view.mouseMoveEvent = self.updateCursorPosition
+
+        self.view.mousePressEvent = self.handleMousePressInView
+
+
 
     def updateCursorPosition(self, event):
         # Get the cursor position in view coordinates
@@ -110,15 +121,6 @@ class GraphEditor(QWidget):
         cursor_pos_image = self.view.mapToScene(cursor_pos_view)
         # Display the cursor position in pixels
         self.cursor_position_label.setText(f'Cursor Position: ({cursor_pos_image.x():.2f}, {cursor_pos_image.y():.2f})')
-
-    # def mouseMoveEvent(self, event):
-    #     # Get the cursor position in view coordinates
-    #     cursor_pos_view = event.pos()
-    #     # Map the cursor position to image coordinates
-    #     cursor_pos_image = self.view.mapToScene(cursor_pos_view)
-    #     self.cursor_position_label.setText(
-    #         f'Cursor Position: ({int(cursor_pos_image.x())}, {int(cursor_pos_image.y())})'
-    #     )
         
     def mouseMoveEvent(self, event):
         cursor_pos_view = event.pos()
@@ -127,7 +129,7 @@ class GraphEditor(QWidget):
             f'Cursor Position: ({int(cursor_pos_image.x())}, {int(cursor_pos_image.y())})'
         )
 
-        # --- Dynamische ROI-Vorschau zeichnen ---
+        # --- Draw dynamic ROI Preview ---
         if self.roi_mode and self.roi_top_left:
             x1, y1 = self.roi_top_left
             x2, y2 = int(cursor_pos_image.x()), int(cursor_pos_image.y())
@@ -142,9 +144,112 @@ class GraphEditor(QWidget):
                 self.scene.removeItem(self.roi_preview_rect_item)
 
             roi_pen = QPen(Qt.green)
-            roi_pen.setStyle(Qt.DashLine)  # Vorschau gestrichelt
+            roi_pen.setStyle(Qt.DashLine)  # show preview in dashed line
             roi_pen.setWidth(2)
             self.roi_preview_rect_item = self.scene.addPolygon(rect, roi_pen)
+        
+        if self.reference_mode: 
+            if event.button() == Qt.LeftButton:
+                view_pos = self.view.mapFromGlobal(event.globalPos())
+                scene_pos = self.view.mapToScene(view_pos)
+                x, y = int(scene_pos.x()), int(scene_pos.y())
+
+                self.reference_point = {"x_pixel": x, "y_pixel": y, "z": 0}
+                self.reference_mode = False
+                self.label.setText(f"Reference Point set at ({x}, {y}, 0)")
+
+                # Draw a small black circle at reference point
+                radius = 5
+                self.scene.addEllipse(x - radius, y - radius, 2 * radius, 2 * radius,
+                                    QPen(Qt.black), QBrush(Qt.black))
+                return
+
+    def handleMousePressInView(self, event):
+        if self.image_path:
+            scene_pos = self.view.mapToScene(event.pos())
+            x, y = int(scene_pos.x()), int(scene_pos.y())
+
+            if self.reference_mode:
+                self.reference_point = {"x_pixel": x, "y_pixel": y, "z": 0}
+                self.reference_mode = False
+                self.label.setText(f"Reference Point set at ({x}, {y}, 0)")
+
+                # Draw a small black circle at the reference point
+                radius = 6
+                ellipse_item = self.scene.addEllipse(x - radius, y - radius, 2 * radius, 2 * radius,
+                                                    QPen(Qt.magenta), QBrush(Qt.magenta))
+                # Draw "Ref" label next to it
+                text_item = self.scene.addText("Reference Point")
+                text_item.setDefaultTextColor(Qt.magenta)
+                text_item.setPos(x + 8, y - 10)
+
+                self.scene.addItem(ellipse_item)
+                return
+
+            elif self.roi_mode:
+                if self.is_setting_top_left:
+                    self.roi_top_left = (x, y)
+                    self.is_setting_top_left = False
+                    self.label.setText('ROI Mode: Click Bottom Right Corner')
+                    print(f"Top-left of ROI set at ({x}, {y})")
+                else:
+                    self.roi_bottom_right = (x, y)
+                    print(f"Bottom-right of ROI set at ({x}, {y})")
+
+                    if self.roi_rect_item:
+                        self.scene.removeItem(self.roi_rect_item)
+                    if self.roi_preview_rect_item:
+                        self.scene.removeItem(self.roi_preview_rect_item)
+
+                    x1, y1 = self.roi_top_left
+                    x2, y2 = self.roi_bottom_right
+
+                    rect = QtGui.QPolygonF([
+                        QPointF(x1, y1), QPointF(x2, y1),
+                        QPointF(x2, y2), QPointF(x1, y2),
+                        QPointF(x1, y1)
+                    ])
+
+                    roi_pen = QPen(Qt.green)
+                    roi_pen.setWidth(2)
+                    self.roi_rect_item = self.scene.addPolygon(rect, roi_pen)
+
+                    self.roi_mode = False
+                    self.is_setting_top_left = True
+                    self.label.setText('ROI Mode: OFF')
+                    self.roi_preview_rect_item = None
+
+            elif self.draw_mode:
+                if not self.current_curve:
+                    # First click -> set start pose
+                    self.start_pose = (x, y, 0)  # default theta = 0
+                    self.current_curve.append(self.start_pose)
+
+                    # Visualize small green point for start
+                    r = 4
+                    self.scene.addEllipse(x - r, y - r, 2 * r, 2 * r, QPen(Qt.green), QBrush(Qt.green))
+                    return
+
+                # Compute orientation based on previous point
+                x1, y1, theta_1 = self.current_curve[-1]
+                dy = y1 - y
+                dx = x - x1
+                theta_2 = 180 - math.degrees(math.atan2(dx, dy))
+
+                # Add the point to the current curve
+                self.current_curve.append((x, y, theta_2))
+
+                # Visualize clicked node as blue circle
+                r = 4
+                self.scene.addEllipse(x - r, y - r, 2 * r, 2 * r, QPen(Qt.blue), QBrush(Qt.blue))
+
+                # Draw the path
+                self.drawPoints(None)
+
+                # Save the curve to the list
+                self.drawn_curves.append(self.current_curve.copy())
+
+
 
     def loadImage(self):
         options = QtWidgets.QFileDialog.Options()
@@ -184,8 +289,9 @@ class GraphEditor(QWidget):
 
         self.label.setText('Set Graph for Camera Trajectory: OFF')
 
-
     def drawPoints(self, event):
+        self.restoreReferencePointIfExists()
+
         if self.draw_mode and self.image_path:
             painter = QPainter(self.offscreen_pixmap)
             painter.setRenderHint(QPainter.Antialiasing)
@@ -222,6 +328,7 @@ class GraphEditor(QWidget):
             self.scene.addPixmap(self.offscreen_pixmap)
 
             self.restoreRoIifExists()
+            self.restoreReferencePointIfExists()
          
     def mousePressEvent(self, event):
         if self.image_path:
@@ -310,6 +417,13 @@ class GraphEditor(QWidget):
         else:
             self.label.setText('ROI Mode: OFF')
 
+    def toggleReferenceMode(self): 
+        self.reference_mode = not self.reference_mode
+        if self.reference_mode:
+            self.label.setText('Reference Mode: Click on reference infrastructure point that equals the coordinate frame in simulation stage.')
+        else: 
+            self.label.setText('Reference Mode: OFF')
+
     def restoreRoIifExists(self):
         if self.roi_top_left and self.roi_bottom_right:
             x1, y1 = self.roi_top_left
@@ -324,9 +438,24 @@ class GraphEditor(QWidget):
             roi_pen = QPen(Qt.green)
             roi_pen.setWidth(2)
 
-            # WICHTIG: Neu zeichnen und neue Referenz speichern
             self.roi_rect_item = self.scene.addPolygon(rect, roi_pen)
-          
+    
+    def restoreReferencePointIfExists(self):
+        if self.reference_point:
+            x = self.reference_point["x_pixel"]
+            y = self.reference_point["y_pixel"]
+
+            # Redraw magenta reference point
+            radius = 6
+            self.scene.addEllipse(
+                x - radius, y - radius, 2 * radius, 2 * radius,
+                QPen(Qt.magenta), QBrush(Qt.magenta)
+            )
+
+            # Redraw label
+            text_item = self.scene.addText("Reference Point")
+            text_item.setDefaultTextColor(Qt.magenta)
+            text_item.setPos(x + 8, y - 10)
 
     def createPoly(self, rec_x, rec_y, rec_theta, rec_width, rec_height):
         polygon = QtGui.QPolygonF() 
@@ -398,17 +527,22 @@ class GraphEditor(QWidget):
             QMessageBox.warning(self, "Error", "No ROI defined!")
             return
 
+        # Add reference point to graph
+        if not self.reference_point:
+            QMessageBox.warning(self, "Error", "No reference point defined!")
+            return
+
         # JSON structure
         graph_data = {
             "output_dir": output_dir,
             "node_count": node_count,
             "graph_length_meters": round(graph_length, 2),
             "nodes": nodes,
-            "roi": roi_data
-
+            "roi": roi_data,
+            "reference_point": self.reference_point  
         }
 
-        # Save file
+        # Save .json file
         try:
             with open(file_path, 'w') as f:
                 json.dump(graph_data, f, indent=4)
@@ -417,6 +551,21 @@ class GraphEditor(QWidget):
             QMessageBox.information(self, "Success", f"Graph saved to:\n{file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Saving failed:\n{str(e)}")
+
+        # Save a PNG of the current scene
+        image_path = file_path.replace(".json", ".png")
+        image = QtGui.QImage(self.scene.sceneRect().size().toSize(), QtGui.QImage.Format_ARGB32)
+        image.fill(Qt.transparent)
+
+        painter = QtGui.QPainter(image)
+        self.scene.render(painter)
+        painter.end()
+
+        try:
+            image.save(image_path)
+            print(f"Saved scene image to: {image_path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Warning", f"Image saving failed: {e}")
 
 def get_graph_file_path():
     app = QApplication(sys.argv)
