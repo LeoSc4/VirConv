@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import QMessageBox
 
 
 from PyQt5.QtGui import QPixmap, QPainter, QPen, QColor, QPainterPath, QBrush
-from PyQt5.QtCore import Qt, QPointF
 import json
 import math
 
@@ -34,7 +33,7 @@ def get_pix_coords(width, height, x, y, theta):
 
 
 class GraphEditor(QWidget):
-    def __init__(self, map_scale=0.05):
+    def __init__(self, map_scale=0.05, reference_point=None):
         super().__init__()
         self.map_scale = map_scale
         self.roi_mode = False
@@ -46,7 +45,7 @@ class GraphEditor(QWidget):
         self.is_setting_top_left = True     # control for top-left and bottom-right points of roi rect
 
         self.reference_mode = False         #for "Set Reference Point"
-        self.reference_point = None 
+        self.reference_point = reference_point 
 
         self.initUI()
 
@@ -102,8 +101,10 @@ class GraphEditor(QWidget):
 
         self.setLayout(self.layout)
 
-        self.view.setMouseTracking(True)  # <-- Neu: Mausbewegung aktivieren
-        self.setMouseTracking(True)       # <-- Falls du auch im ganzen Fenster Mausbewegung tracken willst
+        self.restoreReferencePointIfExists()
+
+        self.view.setMouseTracking(True)  
+        self.setMouseTracking(True)       
 
 
         # Create an off-screen buffer for drawing
@@ -265,6 +266,8 @@ class GraphEditor(QWidget):
             self.offscreen_pixmap = QPixmap(self.pixmap.size())
             self.offscreen_pixmap.fill(Qt.transparent)
 
+            self.restoreReferencePointIfExists()
+
     def toggleDrawMode(self):
         self.draw_mode = not self.draw_mode
         if self.draw_mode:
@@ -417,7 +420,11 @@ class GraphEditor(QWidget):
         else:
             self.label.setText('ROI Mode: OFF')
 
-    def toggleReferenceMode(self): 
+    def toggleReferenceMode(self):
+        if self.reference_point:
+            QMessageBox.information(self, "Info", "Reference point already set externally.")
+            return 
+        
         self.reference_mode = not self.reference_mode
         if self.reference_mode:
             self.label.setText('Reference Mode: Click on reference infrastructure point that equals the coordinate frame in simulation stage.')
@@ -504,8 +511,17 @@ class GraphEditor(QWidget):
             dist_px = math.hypot(x2 - x1, y2 - y1)
             graph_length += dist_px * self.map_scale
 
-        # Build list of nodes
-        nodes = [{"x_pixel": int(x), "y_pixel": int(y)} for x, y, _ in self.current_curve]
+        # List of raw nodes from UI 
+        nodes_raw = [{"x_pixel": int(x), "y_pixel": int(y)} for x, y, _ in self.current_curve]
+
+
+        # Transform to relative nodes
+        x_ref = self.reference_point["x_pixel"]
+        y_ref = self.reference_point["y_pixel"]
+        
+        # List of nodes relative to reference point
+        nodes = [{"x_pixel": int(x - x_ref), "y_pixel": int(y - y_ref)} for x, y, _ in self.current_curve]
+
 
         if self.roi_top_left and self.roi_bottom_right:
             x1, y1 = self.roi_top_left
@@ -537,6 +553,7 @@ class GraphEditor(QWidget):
             "output_dir": output_dir,
             "node_count": node_count,
             "graph_length_meters": round(graph_length, 2),
+            "nodes_raw": nodes_raw,
             "nodes": nodes,
             "roi": roi_data,
             "reference_point": self.reference_point  
@@ -582,9 +599,12 @@ def get_graph_file_path():
     return latest_file
 
 def main():
-    
+
+    # Mocked reference point for testing
+    reference_point = {"x_pixel": 300, "y_pixel": 400, "z": 0}
+
     app = QApplication(sys.argv)
-    ex = GraphEditor(map_scale=0.05)
+    ex = GraphEditor(map_scale=0.05, reference_point=reference_point)
     ex.show()
     sys.exit(app.exec_())
 
