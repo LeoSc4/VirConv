@@ -28,8 +28,9 @@ def load_graph_and_roi(json_graph_path: str):
 
     # Convert dicts in tuples
     nodes = [(node["x_pixel"], node["y_pixel"]) for node in graph_data["nodes"]]
+    reference_point = graph_data["reference_point"]
 
-    return nodes, region_info
+    return nodes, region_info, reference_point
 
 def interpolate_graph_nodes(
     nodes: List[Tuple[int, int]],
@@ -113,13 +114,12 @@ def generate_orientations_per_node(tangent_angle: float):
     ]
     return orientations
 
-def generate_candidate_configs(nodes: List[Tuple[int, int]], image_height: int, image_width: int, map_scale: float = 0.05) -> List[Tuple[List[float], List[float]]]:
+def generate_candidate_configs(nodes: List[Tuple[int, int]], image_height: int, image_width: int, reference_point, map_scale: float = 0.05) -> List[Tuple[List[float], List[float]]]:
     configs = []
 
     for i in range(len(nodes)):
-        x_pixel, y_pixel = nodes[i]
-        x = x_pixel * map_scale
-        y = y_pixel * map_scale
+        x = (reference_point["x_pixel"] + nodes[i][0]) * map_scale
+        y = (reference_point["y_pixel"] + nodes[i][1]) * map_scale
         z = 1.45
 
         if i < len(nodes) - 1:
@@ -163,7 +163,7 @@ def run_greedy_set_cover_with_visualization(
         )
 
         # Map position from world meter values to pixel values 
-        pos_pixel = [p * resolution for p in pos]
+        pos_pixel = [pos[0] * resolution, pos[1] * resolution, pos[2]]
 
         transform = {
             "translation": pos_pixel,
@@ -212,7 +212,7 @@ def run_greedy_set_cover_with_visualization(
             break
 
         covered |= improvement  # Update the covered set by adding the new pixels via union
-        selected_cameras.append({"position": pos_pixel, "orientation": orientation})
+        selected_cameras.append({"position": pos, "orientation": orientation})
         remaining_candidates.remove(best_candidate)
 
         # Save the current step as visualization 
@@ -227,8 +227,8 @@ def run_greedy_set_cover_with_visualization(
             "rotation": list(R.from_euler("zyx", orientation, degrees=True).as_quat())
         }
         single_calc.update_pose(single_transform, verbose=False)
-        cam_x_px = int(pos_pixel[0] * resolution)
-        cam_y_px = int(pos_pixel[1] * resolution)
+        cam_x_px = int(pos_pixel[0])
+        cam_y_px = int(pos_pixel[1])
         cv2.circle(single_calc.overlayed_map, (cam_x_px, cam_y_px), 6, (255, 0, 255), -1)
         cv2.putText(single_calc.overlayed_map, f"{step}", (cam_x_px + 6, cam_y_px - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
 
@@ -289,7 +289,13 @@ def run_greedy_set_cover_with_visualization(
     final_coverage_percentage = 100 * final_calc.mapped_pixels / total_area
     print(f" Final coverage for selected optimized cameras: {final_coverage_percentage:.2f}% of localization region")
 
-    final_img_path = os.path.join(image_output_path, "coverage_final_combined_cameras.png")
+    base_dir = os.path.dirname(os.path.dirname(image_output_path))  # -> ./ (Projektwurzel)
+    final_image_output_path = os.path.join(base_dir, 'camera_poses_OPT_output')
+
+    print("------------------------- DEBUG -------------------------")
+    print(f"Final image output path: {final_image_output_path}")
+
+    final_img_path = os.path.join(final_image_output_path, "coverage_final_combined_cameras.png")
     if final_calc.overlayed_map is not None:
         cv2.imwrite(final_img_path, final_calc.overlayed_map)
         print(f"Final combined coverage image saved to: {final_img_path}")
@@ -332,7 +338,7 @@ def run_set_cover_with_images(optimizer: CameraCoverageOptimizer, candidate_conf
 
     return optimized_camera_list
 
-def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_output_path: str, resolution: float = 0.05):
+def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_output_path: str, resolution: float = 0.05, reference_point: dict = None):
     """
     Saves the optimized camera list to a JSON file with 'camera_positions' and 'camera_rotations'.
     """
@@ -340,18 +346,29 @@ def save_optimized_cameras_to_json(optimized_camera_list: List[dict], image_outp
     camera_positions = []
     camera_rotations = []
 
+    map_scale = 1.0 / resolution
+
     # convert camera position from pixel to meter values
-
-
     for cam in optimized_camera_list:
-        camera_positions_pixel.append(cam["position"])
-        camera_positions.append([p * (1 / resolution) for p in cam["position"]])
+        x_abs, y_abs, z_abs = cam["position"]
+
+        # Convert reference point to meter first
+        ref_x_m = reference_point["x_pixel"] * map_scale
+        ref_y_m = reference_point["y_pixel"] * map_scale
+
+        # Compute relative position in pixels (first convert both to pixels)
+        x_rel = (x_abs - ref_x_m) / map_scale
+        y_rel = (y_abs - ref_y_m) / map_scale
+
+        z_pixel = z_abs / map_scale
+        camera_positions_pixel.append([x_rel, y_rel, z_pixel])
+        camera_positions.append([x_abs, y_abs, z_abs])  # world coordinates in meters
         cam_orientations_raw = cam["orientation"]
-        camera_rotations.append([90.0, 0.0, cam_orientations_raw[1]]) # 90.0 is the fixed rotation angle
+        camera_rotations.append([90.0, 0.0, cam_orientations_raw[1]])  # consistent with orientation convention
 
     data = {
-        "camera_positions_pixel": camera_positions_pixel,
-        "camera_positions": camera_positions,
+        "camera_positions_pixel": camera_positions_pixel,  # relative pixels
+        "camera_positions": camera_positions,              # world coordinates in meters
         "camera_rotations": camera_rotations
     }
 
@@ -463,8 +480,7 @@ if __name__ == "__main__":
     # Load graph and ROI from json file
     json_graph_path = './graph_output/base_graph_from_human_input/graph_and_roi.json' 
 
-    map_image_path = '../map_coverage_calculator/occupancy_grid.png'
-    # region_path = '../map_coverage_calculator/roi_for_adtc.json'          #localization_region.json
+    map_image_path =    '../map_coverage_calculator/occumap_warehouse_5cm.png'                #'../map_coverage_calculator/occupancy_grid.png'
     image_output_path = './graph_output/coverage_subsets'
     
 
@@ -473,7 +489,7 @@ if __name__ == "__main__":
     image_height = map_image.shape[0]
     image_width = map_image.shape[1]
     
-    nodes, region_info = load_graph_and_roi(json_graph_path)
+    nodes, region_info, reference_point = load_graph_and_roi(json_graph_path)
 
     resolution = 1 / 0.05  # e.g. 0.05 m/px → 20 px/m
     
@@ -500,7 +516,13 @@ if __name__ == "__main__":
         max_interpolations_per_edge=5   # max. 5 additional nodes per edge
     )
     
-    candidate_configs = generate_candidate_configs(nodes_interpolated, map_scale=0.05, image_height=image_height, image_width=image_width)
+    candidate_configs = generate_candidate_configs(
+        nodes_interpolated, 
+        map_scale=0.05, 
+        image_height=image_height, 
+        image_width=image_width,
+        reference_point=reference_point
+        )
 
     optimizer = CameraCoverageOptimizer(
         map_image=map_image,
@@ -523,7 +545,7 @@ if __name__ == "__main__":
 
     output_path = './camera_poses_OPT_output'
     output_json_path = os.path.join(output_path, "optimized_cameras.json")
-    save_optimized_cameras_to_json(optimized_camera_list, output_json_path, resolution)
+    save_optimized_cameras_to_json(optimized_camera_list, output_json_path, resolution, reference_point)
 
 
     print("------------------- OUTPUT - OPTIMIZED SENSOR SELECTION -------------------")
