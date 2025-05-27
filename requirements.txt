@@ -24,3 +24,5 @@ tensorboardX==2.4
 tensorboard
 Cython
 prefetch-generator
+wandb
+paho-mqtt

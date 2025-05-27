@@ -1,4 +1,4 @@
-# Base image from nvidia with cuda 11.7.1 in development mode to include nvcc as part of NVIDIA Toolkit
+# base image with CUDA 11.7.1 and development tools (includes nvcc)
 FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
 
 WORKDIR /workspace
@@ -18,6 +18,20 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 # Set non-interactive mode to avoid timezone prompts
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6
+
+# Install Qt and X11 dependencies for PyQt5
+RUN apt-get update && apt-get install -y \
+    libxcb-xinerama0 libxcb-xinerama0-dev \
+    libxcb1 libx11-xcb1 libglu1-mesa \
+    libxrender1 libxi6 libxcomposite1 \
+    libxcursor1 libxrandr2 libxinerama1 \
+    libxss1 libglib2.0-0 \
+    libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+    libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install PyQt5 (binary only to avoid source build issues)
+RUN pip install --no-cache-dir PyQt5==5.15.7 --only-binary PyQt5
 
 ARG CACHE_BUST=1
 
@@ -42,8 +56,7 @@ RUN pip install --user -r requirements.txt
 # To access Tensorboard - TO BE TESTED -> This command works inside: export PATH=$HOME/.local/bin:$PATH
 # ENV PATH="/root/.local/bin:${PATH}"
 
-RUN pip install --user wandb 
-# RUN wandb login      -> log in after starting the docker by using the API key
+# RUN pip install --user wandb 
 
 # Resolve ownership conflicts when using mounted volumes and user permissions
 RUN git config --global --add safe.directory /workspace

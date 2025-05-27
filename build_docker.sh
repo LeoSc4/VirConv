@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --no-cache -t virconv-pytorch1131-cuda117-wandb .
+docker build --no-cache -t virconv-pytorch1131-cuda117 .

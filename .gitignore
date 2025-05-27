@@ -49,3 +49,9 @@ tools/workspace/mocked_pred_boxes.csv
 tools/workspace/mocked_omnv_sim_pred_boxes_20250411.csv
 tools/workspace/ADTC_asset_placement_trolley_baseScript.py
 tools/eval_logs/
+map_coverage_calculator/camera_poses_50perc_overlap.json
+map_coverage_calculator/camera_poses_no_overlap.json
+map_coverage_calculator/camera_poses.json
+map_coverage_calculator/occupancy_grid_ADTC_stage.png
+map_coverage_calculator/occupancy_grid.png
+graph_definition/graph_output/
