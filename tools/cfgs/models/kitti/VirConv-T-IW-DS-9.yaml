@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/IW-dataset-9.yaml
+    _BASE_CONFIG_: tools/cfgs/dataset_configs/IW-dataset-9.yaml    ## OTHER path necessary for automation pipeline    ## Original: cfgs/dataset_configs/IW-dataset-9.yaml
     DATASET: 'KittiDatasetMM'
     INPUT_DISCARD_RATE: 0.8   # actually discard more than 90% virtual points of RGB image,
                               # as we only saved less than 50% RGB points during depth2points conversion.
@@ -20,7 +20,7 @@ DATA_CONFIG:
     }
 
     DATA_AUGMENTOR:                                                        
-        DISABLE_AUG_LIST: ['gt_sampling', 'da_sampling', 'random_local_noise', 'random_world_rotation', 'random_world_flip', 'random_world_scaling', 'random_local_trans', 'random_local_pyramid_aug' ]        #deactivated Data Augmentation for the object as we will do it in the simulation // https://github.com/open-mmlab/OpenPCDet/issues/151
+        DISABLE_AUG_LIST: ['placeholder'] #['gt_sampling', 'da_sampling', 'random_local_noise', 'random_world_rotation', 'random_world_flip', 'random_world_scaling', 'random_local_trans', 'random_local_pyramid_aug' ]        #deactivated Data Augmentation for the object as we will do it in the simulation // https://github.com/open-mmlab/OpenPCDet/issues/151
                           #['placeholder']
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
@@ -314,7 +314,7 @@ MODEL:
             }
 
     POST_PROCESSING:
-        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7, 0.9, 0.95]
         SCORE_THRESH: 0.8 # 0.4
         OUTPUT_RAW_SCORE: False
         EVAL_METRIC: kitti
