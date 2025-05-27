@@ -309,7 +309,7 @@ class KittiDatasetMM(DatasetTemplate):
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
 
-            print("############# AFTER Forward Pass - In GENERATE_PREDICTION_DICTS #############")
+            # print("############# AFTER Forward Pass - In GENERATE_PREDICTION_DICTS #############")
 
             if 'WBF' in box_dict:
                 print("DEBUG - Computing WBF with the following settings:")
@@ -447,7 +447,7 @@ class KittiDatasetMM(DatasetTemplate):
             if self.training and 'num_points_in_gt' in annos:
                 
                 ######### WARNUNG #########################################################################
-                print('WARNING: num_points_in_gt is USED in the current implementation')
+                # print('WARNING: num_points_in_gt is USED in the current implementation')
                 nmask = annos['num_points_in_gt']>0
                 # print('WARNING: num_points_in_gt is NOT used in the current implementation')
                 # nmask = annos['num_points_in_gt']>=0

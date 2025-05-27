@@ -131,7 +131,10 @@ def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     # Filter out redundant BB that overlap
 
     src_box_scores = box_scores
-    if score_thresh is not None:
+
+    
+    # print('DEBUG - Amount of boxes before score tresholding before NMS: ', box_scores.size(0))
+    if score_thresh is not None:     #Not used in DEFAULT_CONFIG
         # Filter out BB with scores below the threshold
         scores_mask = (box_scores >= score_thresh)
         box_scores = box_scores[scores_mask]
@@ -139,9 +142,10 @@ def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
 
     selected = []
 
-    # Apply NMW if Boxes are available 
+    # Apply NMS if Boxes are available 
     if box_scores.shape[0] > 0:
-        box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0])) #select the boxes with the highest scores
+        box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0])) # select the boxes with the highest scores
+                                                                                                                 # amount of boxes is limited to NMS_PRE_MAXSIZE
         boxes_for_nms = box_preds[indices] #get the boxes with the highest scores based on top k indexes 
 
         # Perform the NMS operation specified in the config file (usually NMS_TYPE = 'nms_gpu')

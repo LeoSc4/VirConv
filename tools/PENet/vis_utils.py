@@ -143,7 +143,7 @@ def save_depth_as_points(depth, idx, root_path):
     elif type_ImageSet == 'training':
         # if the index extends the ImageSet for training, then retrieve the index from the val.txt instead of train.txt
         with open('/workspace/data/kitti/ImageSets/train.txt', 'r') as f: 
-            print("DEBUG - Current index: ", idx)
+            # print("DEBUG - Current index: ", idx)
             lines = f.readlines()
             if idx < len(lines):
                 file_idx = int(lines[idx].strip())
@@ -172,10 +172,10 @@ def save_depth_as_points(depth, idx, root_path):
     ## save the cropped image to check if the cropping is correct
 
     # integrate the current time into the save path 
-    cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_cropped_image_{file_idx}.png', image.astype(np.uint8))
+    # cv2.imwrite(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_cropped_image_{file_idx}.png', image.astype(np.uint8))
 
     # save the lidar as .pcd file type 
-    print("#+# Saving the raw_lidar_from_file as .npy & .pcd file")
+    # print("#+# Saving the raw_lidar_from_file as .npy & .pcd file")
 
     # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_lidar_from_raw_file.npy', lidar)
     # save_point_cloud_as_pcd(lidar, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_lidar_from raw_file.pcd')
@@ -183,20 +183,20 @@ def save_depth_as_points(depth, idx, root_path):
     pts_rect = calib.lidar_to_rect(lidar[:, 0:3])
 
     #+# print the pts_rect to check if the points are in the right range (use current date time)
-    print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: pts_rect: {pts_rect}')
-    print("#+# Saving the pts_rect as .npy & .pcd file")
+    # print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: pts_rect: {pts_rect}')
+    # print("#+# Saving the pts_rect as .npy & .pcd file")
     # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_pts_rect_I.npy', pts_rect)
     # save_point_cloud_as_pcd(pts_rect, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_pts_rect_I.pcd')
 
     fov_flag = get_fov_flag(pts_rect, image.shape, calib)
-    print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: fov_flag: {fov_flag}')   
-    print("#+# Saving the get_fov_flag as .npy & .pcd file")
+    # print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: fov_flag: {fov_flag}')   
+    # print("#+# Saving the get_fov_flag as .npy & .pcd file")
     # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_fov_flag_II.npy', fov_flag)
 
     lidar = lidar[fov_flag]
-    print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: Applied the fov_flag to the lidar points')
+    # print(f'BLOCK - Main Iterate in Loop {datetime.now().strftime("%Y%m%d_%H%M%S")}: Applied the fov_flag to the lidar points')
     #+# save the lidar to check if the points are in the right range (use current date time)
-    print("#+# Saving the lidar with applied fov as .npy & .pcd file")
+    # print("#+# Saving the lidar with applied fov as .npy & .pcd file")
     # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_lidar_with_applied_fov_III.npy', lidar)
     # save_point_cloud_as_pcd(lidar, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_lidar_with_applied_fov_III.pcd')
     
@@ -217,8 +217,8 @@ def save_depth_as_points(depth, idx, root_path):
     np.save(out_path, final_points)
 
     #+# save the final points to the pipeline_investigation check 
-    print("#+# Saving the final_points as .npy & .pcd file")
-    np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_final_points_velodyne_depth_IV.npy', final_points)
+    # print("#+# Saving the final_points as .npy & .pcd file")
+    # np.save(f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_final_points_velodyne_depth_IV.npy', final_points)
     # save_point_cloud_as_pcd(final_points, f'/workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_{file_idx}_final_points_velodyne_depth_IV.pcd')
 
 

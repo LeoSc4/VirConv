@@ -232,7 +232,7 @@ def iterate(mode, args, loader, model, optimizer, logger, epoch):
             start = time.time()
 
             # Forward pass
-            print("(#+#) Forward pass in the iterate of Block Load test dataset (#+#)")
+            # print("(#+#) Forward pass in the iterate of Block Load test dataset (#+#)")
             pred = model(batch_data)
 
         if(args.evaluate):

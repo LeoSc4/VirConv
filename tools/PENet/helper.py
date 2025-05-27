@@ -49,28 +49,28 @@ class logger:
         if (i + 1) % self.args.print_freq == 0:
             avg = avg_meter.average()
             blk_avg = blk_avg_meter.average()
-            print('=> output: {}'.format(self.output_directory))
-            print(
-                '{split} Epoch: {0} [{1}/{2}]\tlr={lr} '
-                't_Data={blk_avg.data_time:.3f}({average.data_time:.3f}) '
-                't_GPU={blk_avg.gpu_time:.3f}({average.gpu_time:.3f})\n\t'
-                'RMSE={blk_avg.rmse:.2f}({average.rmse:.2f}) '
-                'MAE={blk_avg.mae:.2f}({average.mae:.2f}) '
-                'iRMSE={blk_avg.irmse:.2f}({average.irmse:.2f}) '
-                'iMAE={blk_avg.imae:.2f}({average.imae:.2f})\n\t'
-                'silog={blk_avg.silog:.2f}({average.silog:.2f}) '
-                'squared_rel={blk_avg.squared_rel:.2f}({average.squared_rel:.2f}) '
-                'Delta1={blk_avg.delta1:.3f}({average.delta1:.3f}) '
-                'REL={blk_avg.absrel:.3f}({average.absrel:.3f})\n\t'
-                'Lg10={blk_avg.lg10:.3f}({average.lg10:.3f}) '
-                'Photometric={blk_avg.photometric:.3f}({average.photometric:.3f}) '
-                .format(epoch,
-                        i + 1,
-                        n_set,
-                        lr=lr,
-                        blk_avg=blk_avg,
-                        average=avg,
-                        split=split.capitalize()))
+            # print('=> output: {}'.format(self.output_directory))
+            # print(
+            #     '{split} Epoch: {0} [{1}/{2}]\tlr={lr} '
+            #     't_Data={blk_avg.data_time:.3f}({average.data_time:.3f}) '
+            #     't_GPU={blk_avg.gpu_time:.3f}({average.gpu_time:.3f})\n\t'
+            #     'RMSE={blk_avg.rmse:.2f}({average.rmse:.2f}) '
+            #     'MAE={blk_avg.mae:.2f}({average.mae:.2f}) '
+            #     'iRMSE={blk_avg.irmse:.2f}({average.irmse:.2f}) '
+            #     'iMAE={blk_avg.imae:.2f}({average.imae:.2f})\n\t'
+            #     'silog={blk_avg.silog:.2f}({average.silog:.2f}) '
+            #     'squared_rel={blk_avg.squared_rel:.2f}({average.squared_rel:.2f}) '
+            #     'Delta1={blk_avg.delta1:.3f}({average.delta1:.3f}) '
+            #     'REL={blk_avg.absrel:.3f}({average.absrel:.3f})\n\t'
+            #     'Lg10={blk_avg.lg10:.3f}({average.lg10:.3f}) '
+            #     'Photometric={blk_avg.photometric:.3f}({average.photometric:.3f}) '
+            #     .format(epoch,
+            #             i + 1,
+            #             n_set,
+            #             lr=lr,
+            #             blk_avg=blk_avg,
+            #             average=avg,
+            #             split=split.capitalize()))
             blk_avg_meter.reset(False)
 
     def conditional_save_info(self, split, average_meter, epoch):

@@ -486,7 +486,7 @@ class MyLoader():
         image = image[:352, :1216]
 
         # save the image in the path for pipeline investigation
-        cv2.imwrite(f'workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_My_loader_get_item_image_cropped_000000.png', image.astype(np.uint8))
+        # cv2.imwrite(f'workspace/data/kitti/training/pipeline_investigation/{datetime.now().strftime("%Y%m%d_%H%M%S")}_My_loader_get_item_image_cropped_000000.png', image.astype(np.uint8))
 
         rgb, depth = load_depth_input(calib, image, points)
 

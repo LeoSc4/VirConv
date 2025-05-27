@@ -20,8 +20,12 @@ def boxes_bev_iou_cpu(boxes_a, boxes_b):
     """
     boxes_a, is_numpy = common_utils.check_numpy_to_torch(boxes_a)
     boxes_b, is_numpy = common_utils.check_numpy_to_torch(boxes_b)
+
+    # Ensure that everything is running on CPU and every box array contains 7 values 
     assert not (boxes_a.is_cuda or boxes_b.is_cuda), 'Only support CPU tensors'
     assert boxes_a.shape[1] == 7 and boxes_b.shape[1] == 7
+    # Initiate empty result table
+    
     ans_iou = boxes_a.new_zeros(torch.Size((boxes_a.shape[0], boxes_b.shape[0])))
     iou3d_nms_cuda.boxes_iou_bev_cpu(boxes_a.contiguous(), boxes_b.contiguous(), ans_iou)
 
@@ -76,15 +80,16 @@ def boxes_iou3d_gpu(boxes_a, boxes_b):
     assert boxes_a.shape[1] == boxes_b.shape[1] == 7
 
     # height overlap
-    boxes_a_height_max = (boxes_a[:, 2] + boxes_a[:, 5] / 2).view(-1, 1)
+    boxes_a_height_max = (boxes_a[:, 2] + boxes_a[:, 5] / 2).view(-1, 1) # view(-1, 1) formats the result to a 2D view with one row and as mny columns as in boxes_a
     boxes_a_height_min = (boxes_a[:, 2] - boxes_a[:, 5] / 2).view(-1, 1)
     boxes_b_height_max = (boxes_b[:, 2] + boxes_b[:, 5] / 2).view(1, -1)
-    boxes_b_height_min = (boxes_b[:, 2] - boxes_b[:, 5] / 2).view(1, -1)
+    boxes_b_height_min = (boxes_b[:, 2] - boxes_b[:, 5] / 2).view(1, -1) 
 
     # bev overlap
     overlaps_bev = torch.cuda.FloatTensor(torch.Size((boxes_a.shape[0], boxes_b.shape[0]))).zero_()  # (N, M)
     iou3d_nms_cuda.boxes_overlap_bev_gpu(boxes_a.contiguous(), boxes_b.contiguous(), overlaps_bev)
 
+    # height overlap
     max_of_min = torch.max(boxes_a_height_min, boxes_b_height_min)
     min_of_max = torch.min(boxes_a_height_max, boxes_b_height_max)
     overlaps_h = torch.clamp(min_of_max - max_of_min, min=0)
@@ -92,9 +97,12 @@ def boxes_iou3d_gpu(boxes_a, boxes_b):
     # 3d iou
     overlaps_3d = overlaps_bev * overlaps_h
 
+    # Calculate volume of the two boxes 
     vol_a = (boxes_a[:, 3] * boxes_a[:, 4] * boxes_a[:, 5]).view(-1, 1)
     vol_b = (boxes_b[:, 3] * boxes_b[:, 4] * boxes_b[:, 5]).view(1, -1)
 
+    # Calculate the iou (Schnittmenge / Vereinigung) = (Intersection) / (Union)
+    # torch clamp prevents division by zero
     iou3d = overlaps_3d / torch.clamp(vol_a + vol_b - overlaps_3d, min=1e-6)
 
     return iou3d
@@ -108,14 +116,26 @@ def nms_gpu(boxes, scores, thresh, pre_maxsize=None, **kwargs):
     :return:
     """
     assert boxes.shape[1] == 7
+
+    # Sort the boxes based on the scores (Descending - High to Low)
     order = scores.sort(0, descending=True)[1]
+
+    # print('------------------- Starting NMS -------------------')
+    # print('DEBUG - Amount of boxes before NMS: ', boxes.size(0))
+    
     if pre_maxsize is not None:
         order = order[:pre_maxsize]
 
+    # Reorder the boxes based on the scores (Descending - High to Low)
     boxes = boxes[order].contiguous()
-    keep = torch.LongTensor(boxes.size(0))
+    keep = torch.LongTensor(boxes.size(0)) #Create Tensor to save BB after NMS
+
+    # Perform NMS operation
     num_out = iou3d_nms_cuda.nms_gpu(boxes, keep, thresh)
-    return order[keep[:num_out].cuda()].contiguous(), None
+
+    # print('DEBUG - Amount of boxes after NMS: ', num_out)
+    # print('------------------------------------------')
+    return order[keep[:num_out].cuda()].contiguous(), None         # Return the indexes of the boxes that are kept after NMS
 
 
 def nms_normal_gpu(boxes, scores, thresh, **kwargs):

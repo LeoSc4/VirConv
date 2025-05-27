@@ -273,10 +273,10 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
             pred_dicts, ret_dict, batch_dict = model(batch_dict)    #forward pass
                                                                     # batch_dict can be neglected for Bounding Box
 
-        print("----------- Starting GENERATE PREDICTION DICTS -------------")
+        # print("----------- Starting GENERATE PREDICTION DICTS -------------")
         
         # Generate the prediction dictionaries to receive class names and BBox coordinates
-        print("INFO - Generating 'annos' as prediction dictionaries in Camera coordinates")  # annos can contain dicts for multiple frames
+        # print("INFO - Generating 'annos' as prediction dictionaries in Camera coordinates")  # annos can contain dicts for multiple frames
             # generate_prediction_dicts applies WBF to the predictions
         annos = inference_dataset.generate_prediction_dicts(
                 batch_dict, pred_dicts, cfg.CLASS_NAMES,

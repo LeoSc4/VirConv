@@ -206,14 +206,14 @@ class Detector3DTemplate(nn.Module):
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
-            print("----------- POST PROCESSING -----------")
+            # print("----------- POST PROCESSING -----------")
             # print("Batch box preds shape: ", batch_dict['batch_box_preds'].shape)
             # print("Batch Box predictions: ", batch_dict['batch_box_preds'])
 
             box_preds = batch_dict['batch_box_preds'][batch_mask] # batch_mask is a boolean mask to select the boxes for the current batch
 
             # print(" WARNING - Applied batch_mask to box_preds")
-            print("Box preds shape: ", box_preds.shape)
+            # print("Box preds shape: ", box_preds.shape)
             # print("Box predictions: ", box_preds)
 
             src_box_preds = box_preds
@@ -267,7 +267,7 @@ class Detector3DTemplate(nn.Module):
                     label_preds = label_preds + 1
 
                 if post_process_cfg.get('WBF', True):   # Checks if key 'WBF' exists and if value is true, if it does not exist, it returns True
-                    print('###################### IN WBF IN POST PROCESSING #################################################')
+                    # print('###################### IN WBF IN POST PROCESSING #################################################')
                     if post_process_cfg.OUTPUT_RAW_SCORE:   # get maximum score from the BB class predictions
                         max_cls_preds, _ = torch.max(src_cls_preds, dim=-1)
 
@@ -279,7 +279,7 @@ class Detector3DTemplate(nn.Module):
                     final_boxes = box_preds[score_mask]
                 else:
 
-                    print('###################### IN CLASS AGNOSTIC NMS IN POST PROCESSING #################################################')
+                    # print('###################### IN CLASS AGNOSTIC NMS IN POST PROCESSING #################################################')
                     # Apply NMS to filter out redundant BB only if WBF is NOT ENABLED
                     selected, selected_scores = model_nms_utils.class_agnostic_nms(
                         box_scores=cls_preds, box_preds=box_preds,
@@ -331,7 +331,7 @@ class Detector3DTemplate(nn.Module):
                 record_dict.update({'SCORE_THRESH': post_process_cfg.get('SCORE_THRESH', 0.4)})
 
             pred_dicts.append(record_dict)
-            print("----------- End of POST PROCESSING -----------")
+            # print("----------- End of POST PROCESSING -----------")
 
         return pred_dicts, recall_dict
 

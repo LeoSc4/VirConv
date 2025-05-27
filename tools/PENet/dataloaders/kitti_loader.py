@@ -29,7 +29,7 @@ def load_calib():
     Proj_str = P_rect_line.split(":")[1].split(" ")[1:]
     Proj = np.reshape(np.array([float(p) for p in Proj_str]),
                       (3, 4)).astype(np.float32)
-    print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Loading Hard coded calib for camera matrix - RAW \n", Proj)
+    # print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Loading Hard coded calib for camera matrix - RAW \n", Proj)
 
     K = Proj[:3, :3]  # camera matrix
 
@@ -362,10 +362,10 @@ class KittiDepth(data.Dataset):
         self.paths = paths
         self.transform = transform
         self.K = load_calib()
-        print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Camera Calibration Matrix K: \n", self.K)
+        # print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Camera Calibration Matrix K: \n", self.K)
         self.threshold_translation = 0.1
         self.my_loader = MyLoader(args.detpath)
-        print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Creating MyLoader")
+        # print(datetime.now().strftime("%H:%M:%S"), "#+# Block Load dataset KittiDepth #+# \n Creating MyLoader")
 
     def __getraw__(self, index):
         rgb = rgb_read(self.paths['rgb'][index]) if \

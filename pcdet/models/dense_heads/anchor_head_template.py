@@ -130,7 +130,7 @@ class AnchorHeadTemplate(nn.Module):
                 raise NotImplementedError
             else:
                 #+# Non Maximum Suppression
-                print('DEBUG - in AnchorHead Proposal Layer')
+                # print('DEBUG - in AnchorHead Proposal Layer')
                 selected, selected_scores = class_agnostic_nms(
                     box_scores=cur_roi_scores, box_preds=box_preds, nms_config=nms_config
                 )

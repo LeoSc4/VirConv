@@ -61,11 +61,11 @@ def get_calib_from_file(filepath):
     data2["Tr_velo2cam"]=vtc_mat.reshape(3, 4)
     data2["R0"]=R0.reshape(3, 3)                    #+# R0 is the rectification matrix that is first read from hardcoded but then updated acc. to file
 
-    print(datetime.now().strftime("%H:%M:%S"), "(#+#) BLOCK Load test data set (#+#) - Calibration file loaded from specific file")
-    print("P2: ", data2["P2"])
-    print("P3: ", data2["P3"])
-    print("Tr_velo2cam: ", data2["Tr_velo2cam"])
-    print("R0: ", data2["R0"])
+    # print(datetime.now().strftime("%H:%M:%S"), "(#+#) BLOCK Load test data set (#+#) - Calibration file loaded from specific file")
+    # print("P2: ", data2["P2"])
+    # print("P3: ", data2["P3"])
+    # print("Tr_velo2cam: ", data2["Tr_velo2cam"])
+    # print("R0: ", data2["R0"])
     return data2
 
 
