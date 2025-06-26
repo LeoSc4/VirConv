@@ -71,7 +71,7 @@ def section_overlaps_post_processing(omnv_world_bbox_poses_path, iou_threshold=0
                 'x_sim_world': x_sim_world,
                 'y_sim_world': y_sim_world,
                 'z_sim_world': z_sim_world,
-                'rotation_z_sim': rotation_z_sim,
+                'rotation_z': rotation_z_sim,
                 'score': score,
                 'frame_id': frame_id,
                 'asset_path': asset_path,
@@ -79,7 +79,6 @@ def section_overlaps_post_processing(omnv_world_bbox_poses_path, iou_threshold=0
             })
 
         # Using iou3d_nms_utils.boxes_iou3d_gpu
-        
         bbox_to_remove = set() # saves all elements only once, no duplicates
 
         sim_bboxes_tensor = torch.tensor([bbox['sim_bbox'] for bbox in sim_bboxes], dtype=torch.float32).cuda()  # Convert to a tensor and move to GPU

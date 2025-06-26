@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from pathlib import Path
+from math import atan2
 
 from copy import deepcopy
 from pcdet.config import cfg, log_config_to_file, cfg_from_yaml_file
@@ -15,10 +16,7 @@ from pcdet.utils import common_utils
 from tools.visualization.iw_vis import visualize_scene, load_kitti_labels_in_velo
 from tools.visual_utils.vis_utils_ls import load_kitti_calib
 
-from tools.workspace.pose_reconstruction_omnv import get_camera_pose_omnv_world
-from tools.workspace.pose_reconstruction_omnv import reconstruct_bbox_pose_omnv_world
-from tools.workspace.pose_reconstruction_omnv import map_class_name
-from tools.workspace.pose_reconstruction_omnv import get_asset_path_omnv
+from tools.workspace.pose_reconstruction_omnv import get_USD_cam_pose_in_WORLD, map_class_name, get_asset_path_omnv
 from tools.workspace.bbox_sim_post_processing_section_overlaps import section_overlaps_post_processing
 
 import datetime
@@ -32,18 +30,17 @@ def parse_config():
 
     parser.add_argument('--batch_size', type=int, default=None, required=False, help='batch size for inference')
     parser.add_argument('--workers', type=int, default=0, help='number of workers for dataloader')
-    # parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
 
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
     cfg.TAG = Path(args.cfg_file).stem
-    cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
+    cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])
 
     np.random.seed(1024)
     return args, cfg
 
-def format_annos_for_vis(annos): #transform annos in velo cf for visulization 
+def format_annos_for_vis(annos): # Transform annos from KITTI Cam to KITTI Velo
     # annos can contain multiple frames (see xx_dataset.py -> generate_prediction_dicts)
     formatted_boxes = []
     for anno in annos: 
@@ -51,25 +48,34 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
         calib_path_for_selected_frame = f"./data/kitti/training/calib/{str(anno['frame_id']).zfill(6)}.txt"
         calib_for_selected_frame = load_kitti_calib(calib_path_for_selected_frame)
 
+        print(f"DEBUG - Transformation 1 (CAM to VELO): \n{calib_for_selected_frame['cam_rect_to_velo']}")
+
         formatted_boxes_per_frame = []
         for bbox_idx in range(len(anno['name'])):
-            # Pre-formatting 
             center = anno['location'][bbox_idx, :]
-            center = np.append(np.array(anno['location'][bbox_idx], dtype=np.float32), 1.0) #add 1.0 for homogenous coordinates
+            center = np.append(np.array(anno['location'][bbox_idx], dtype=np.float32), 1.0) 
             center_velo = calib_for_selected_frame['cam_rect_to_velo'] @ center
             center_velo = [center_velo[0], center_velo[1], center_velo[2]]          
-            rotation_y_velo = np.pi - anno['rotation_y'][bbox_idx]  # Convert from camera frame to lidar frame 
+
+            r_y = anno['rotation_y'][bbox_idx]
+            rot_z_velo = np.pi - r_y  # Convert from camera frame to lidar frame
+
+
             size = anno['dimensions'][bbox_idx, :]  # original format: l, w, h -> see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
 
-            size = [size[2], size[0], size[1]]  
+            size = [size[2], size[0], size[1]]             #+# Tbi
 
             formatted_boxes_per_frame.append({
                 'type': anno['name'][bbox_idx],
                 'dimensions': size,
                 'location': center_velo,
-                'rotation_y': rotation_y_velo,
-                'score': anno['score'][bbox_idx]
-                })
+                'rotation_z': rot_z_velo,
+                'score': anno['score'][bbox_idx],
+                'bbox': anno['bbox'][bbox_idx],
+                'truncated': anno['truncated'][bbox_idx],
+                'occluded': anno['occluded'][bbox_idx],
+                'alpha': anno['alpha'][bbox_idx]
+            })
 
         formatted_boxes.append({
             'frame_id': anno['frame_id'],
@@ -107,152 +113,181 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     logger.info('**********************Start logging**********************')
     log_config_to_file(cfg, logger=logger) #write the complete config to the log file
 
-
-    # Build the dataloader for inference
     inference_dataset, inference_dataloader, sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,    #dataset config defined in .yaml of model -> dataset     
+        dataset_cfg=cfg.DATA_CONFIG,    #dataset config defined in .yaml of model --> dataset     
         class_names=cfg.CLASS_NAMES,    #to be predicted class names defined in .yaml of model
         batch_size=args.batch_size,
         dist=False, workers=args.workers, logger=None, training=False    
     )
 
-    # Build model
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=inference_dataset)
     model.load_params_from_file(filename=model_ckpt, logger=logger)
     model.cuda()  
-    model.eval() # set model in mode for inference
+    model.eval() # set model in inference mode
 
     annos_for_all_frames = [] 
     det_annos_velo_for_all_frames = []
 
     print("------------ Starting Inference to retrieve results -------------")
-    #Forward pass requires the batch_dict. It can be retrieved from the dataloader which is a output of build_dataloader
     for i, batch_dict in enumerate(inference_dataloader):
-        load_data_to_gpu(batch_dict) #converts the data to the torch tensors
+        load_data_to_gpu(batch_dict) #converts data to GPU Torch tensors
         with torch.no_grad():
             pred_dicts, ret_dict, batch_dict = model(batch_dict)    #forward pass
                                                                     # batch_dict can be neglected for Bounding Box
 
-
-        # print("----------- Starting GENERATE PREDICTION DICTS -------------")
-        
         # Generate the prediction dictionaries to receive class names and BBox coordinates
-            # generate_prediction_dicts applies WBF to the predictions
         annos = inference_dataset.generate_prediction_dicts(
                 batch_dict, pred_dicts, cfg.CLASS_NAMES,
                 output_path=bbox_analysis_path
             ) 
-        
+    
+        # Transform the annotations from KITTI Camera to KITTI Velodyne coordinate frame
         det_annos_velo = format_annos_for_vis(annos)
+
+        print(f"INFO: Detections transformed to KITTI VELODYNE!")
         
-        annos_for_all_frames.append(annos) #append the annos for all frames to the list
+        annos_for_all_frames.append(annos) #append the annos (KITTI cam) for all frames to the list
         det_annos_velo_for_all_frames.append(det_annos_velo) #append the det_annos_velo for all frames to the list
 
-    print("------------ Starting Logging of predicted BB in KITTI Cam CF -------------")    
-    csv_output_path_BB_cam = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_kitti_cam_cf.csv'
-    # write annos in one csv with frame_id at last column 
-    with open(csv_output_path_BB_cam, 'w') as f:                    
-        # format for csv: name, truncated, occluded, alpha, bbox[0], bbox[1], bbox[2], bbox[3], dimensions[0], dimensions[1], dimensions[2], location[0], location[1], location[2], rotation_y, score
-        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_cam, y_cam, z_cam, rotation_y, score, frame_id\n') #toggle based on usage 
+    print("------------ Starting Logging of predicted BB in KITTI Velo CF -------------")    
+    csv_output_path_BB_velo = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_kitti_cam_cf.csv'
         
-        for anno in annos_for_all_frames:       
-            for bbox_idx in range(len(anno[0]['name'])):
-                bbox_2d = anno[0]['bbox'][bbox_idx]
-                dims = anno[0]['dimensions'][bbox_idx]
-                loc = anno[0]['location'][bbox_idx]
+    with open(csv_output_path_BB_velo, 'w') as f:                    
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_velo, y_velo, z_velo, rotation_z, score, frame_id\n')  
+
+        for anno in det_annos_velo_for_all_frames:
+            for bbox in anno[0]['bboxes']:
+
+                print(f"DEBUG: RAW Rotation_z for bbox index {anno[0]['bboxes'].index(bbox)} in degrees: {bbox['rotation_z'] * 180 / np.pi:.2f}")
 
                 f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s\n' % (
-                        anno[0]['name'][bbox_idx],
-                        anno[0]['truncated'][bbox_idx],
-                        anno[0]['occluded'][bbox_idx],
-                        anno[0]['alpha'][bbox_idx],
-                        bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
-                        dims[1], dims[2], dims[0], # #lhw -> hwl
-                        loc[0], loc[1], loc[2],
-                        anno[0]['rotation_y'][bbox_idx], 
-                        anno[0]['score'][bbox_idx], 
-                        anno[0]['frame_id'] 
-                ))
-                        
-        logger.info(f"Predicted Bounding Boxes in KITTI Cam CF written to {csv_output_path_BB_cam}") 
+                    bbox['type'],
+                    bbox['truncated'],
+                    bbox['occluded'],
+                    bbox['alpha'],
+                    bbox['bbox'][0], bbox['bbox'][1], bbox['bbox'][2], bbox['bbox'][3],
+                    bbox['dimensions'][0], # h
+                    bbox['dimensions'][1], # w
+                    bbox['dimensions'][2], # l
+                    bbox['location'][0],
+                    bbox['location'][1],
+                    bbox['location'][2],
+                    bbox['rotation_z'],
+                    bbox['score'],
+                    anno[0]['frame_id']
+                ))      
 
+        logger.info(f"Predicted Bounding Boxes in KITTI VELO CF written to {csv_output_path_BB_velo}") 
 
-    print("------------ Starting Logging of predicted BB in Simulation World CF -------------")    
+    # create copy to not overwrite the original VELO annos
+    annos_for_all_frames_kitti_velo = deepcopy(det_annos_velo_for_all_frames) 
 
-    # Get the predicted BBoxes in camera coordinate frame
-    # create copy to not overwrite the original annos
-    annos_for_all_frames_kitti_cam = deepcopy(annos_for_all_frames) 
-    cam_graph_extrinsics_path = f"./data/kitti/poses_dataset_9.json"       #defined in omniverse isaac sim default camera convention
+    Tr_velo_to_USD_cam_Convention = np.array([
+                                        [   0,   -1,   0,   0],
+                                        [   0,    0,   1,   0],
+                                        [  -1,    0,   0,   0],
+                                        [   0,    0,   0,   1]
+                                    ])
+    print(f"DEBUG - Transformation 2 (VELO to USD Cam Convention): \n {Tr_velo_to_USD_cam_Convention}")
 
-    # Get the camera extrinsics for all frames 
-    Tr_cam_transform_matrices = get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
+    cam_graph_extrinsics_path = f"./SGTD_camera_poses/optimized_cameras.json"                   
+    get_USD_CAM_pose_in_WORLD_LIST = get_USD_cam_pose_in_WORLD(USD_cam_in_world_path= cam_graph_extrinsics_path)
 
     annos_for_all_frames_sim_world = []
+    for anno_kitti_velo in annos_for_all_frames_kitti_velo:
+        frame_id = anno_kitti_velo[0]['frame_id']
+        bboxes = anno_kitti_velo[0]['bboxes']
 
+        # Get frame Transformation from USD Cam to World coordinates for current frame
+        Tr_USD_Cam_pose_in_world_curr = None
+        for m in get_USD_CAM_pose_in_WORLD_LIST:
+            if m['frame_id'] == frame_id:
+                Tr_USD_Cam_pose_in_world_curr = m['T_USD_CAM_extrinsics']
+                break
 
-    for anno_kitti_cam in annos_for_all_frames_kitti_cam:
-        for bbox_idx in range(len(anno_kitti_cam[0]['name'])):
-            curr_frame_id = anno_kitti_cam[0]['frame_id']
-            # Pre-formatting 
-            # center = anno_kitti_cam[0]['location'][bbox_idx, :]
-            center_hom = np.append(np.array(anno_kitti_cam[0]['location'][bbox_idx], dtype=np.float32), 1.0)
+        for bbox_idx, bbox in enumerate(bboxes):
+            # Get BB center in local frame coordinates (KITTI Velo convention)
+            bbox_center = np.append(np.array(bbox['location'], dtype=np.float32), 1.0)
+            bbox_rot_z_local_velo = bbox['rotation_z']  # Rotation in local velo coordinates 
+            
+            bbox_local_pose = np.array([
+                    [np.cos(bbox_rot_z_local_velo), -np.sin(bbox_rot_z_local_velo),  0, bbox_center[0]],
+                    [np.sin(bbox_rot_z_local_velo),  np.cos(bbox_rot_z_local_velo),  0, bbox_center[1]],
+                    [0,                                                          0,  1, bbox_center[2]],
+                    [0,                                                          0,  0,              1]
+                ], dtype=float)
+            
+            # Transform bbox from local velo coordinates to USD camera convention
+            bbox_USD_convention_local_pose = Tr_velo_to_USD_cam_Convention @ bbox_local_pose  # 4x4 
 
-            bbox_center_omnv_world = reconstruct_bbox_pose_omnv_world(Tr_cam_transform_matrices, pred_bbox_center_kitti_cam=center_hom, current_frame_id=curr_frame_id)
+            print(f"INFO: BBox No. {bbox_idx} transformed to USD Cam Convention: \n{bbox_USD_convention_local_pose}") 
 
-            # update the location of the bbox in the annos
-            anno_kitti_cam[0]['location'][bbox_idx, :] = bbox_center_omnv_world[:3]
+            # Transform bbox from USD convention to World coordinates (include extrinsics)
+            bbox_world_pose = Tr_USD_Cam_pose_in_world_curr @ bbox_USD_convention_local_pose  # 4x4
+            print(f"DEBUG: BBox World Pose for bbox index {bbox_idx} in frame {frame_id}: \n{bbox_world_pose}")
 
-            # update the rotation_y to rotation_z naming as the bbox are now in Omniverse Isaac Sim world coordinates with z up  
-            if bbox_idx == 0: #only delete the array of the rotations (list of rotation_y) once because anno_kitti_cam[0] contains multiple bboxes
-                anno_kitti_cam[0]['rotation_z_sim'] = deepcopy(anno_kitti_cam[0]['rotation_y'])
-                del anno_kitti_cam[0]['rotation_y']
+            bbox['location'] = bbox_world_pose[:3, 3]
 
-            # Map the class names to application class names 
-            anno_kitti_cam[0]['name'] = anno_kitti_cam[0]['name'].astype('<U20')    
-            print(anno_kitti_cam[0]['name'].dtype)
-            anno_kitti_cam[0]['name'][bbox_idx] = map_class_name(anno_kitti_cam[0]['name'][bbox_idx])
-            anno_kitti_cam[0]['asset_path_omnv'] = str(get_asset_path_omnv(anno_kitti_cam[0]['name'][bbox_idx])) #get the asset path for the specific class name
+            bbox_rot_z = atan2(bbox_world_pose[1][0], bbox_world_pose[0][0])
+            bbox['rotation_z'] = bbox_rot_z 
 
-        annos_for_all_frames_sim_world.append(anno_kitti_cam)
+            print(f"DEBUG: Rotation_z for bbox index {bbox_idx} in frame {frame_id} in degrees: {bbox_rot_z * 180 / np.pi:.2f}")
 
-    csv_output_path_BB_SIM_world = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf.csv'
-    with open(csv_output_path_BB_SIM_world, 'w') as f:      
-
-        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id, asset_path\n') #toggle based on usage 
+            # Map name and get asset path
+            bbox['type'] = map_class_name(bbox['type'])
+            bbox['asset_path_omnv'] = str(get_asset_path_omnv(bbox['type']))
         
-        for anno_sim in annos_for_all_frames_sim_world:       
-            for bbox_idx in range(len(anno_sim[0]['name'])):
-                bbox_2d = anno_sim[0]['bbox'][bbox_idx]
-                dims = anno_sim[0]['dimensions'][bbox_idx]
-                loc = anno_sim[0]['location'][bbox_idx]
+        annos_for_all_frames_sim_world.append(anno_kitti_velo)
 
-                f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s, %s\n' % (
-                        anno_sim[0]['name'][bbox_idx],
-                        anno_sim[0]['truncated'][bbox_idx],
-                        anno_sim[0]['occluded'][bbox_idx],
-                        anno_sim[0]['alpha'][bbox_idx],
-                        bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
-                        dims[1], dims[2], dims[0], # #lhw -> hwl
-                        loc[0], loc[1], loc[2],
-                        anno_sim[0]['rotation_z_sim'][bbox_idx], 
-                        anno_sim[0]['score'][bbox_idx], 
-                        anno_sim[0]['frame_id'],
-                        anno_sim[0]['asset_path_omnv']
-                ))
-        
-        logger.info(f"Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world}") 
+    print("------------ Start Writing predicted Bounding Boxes in World coords BEFORE Post-Processing -------------")        
+    csv_output_path_BB_SIM_world = './detections/inference_detections_before_post-processing.csv'
+    with open(csv_output_path_BB_SIM_world, 'w') as f:
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z, score, frame_id, asset_path\n')
 
-    print("------------ Starting POST PROCESSING of predicted BB for section overlaps -------------")
-    
-    csv_output_path_BB_SIM_world_POST_PROCESSED = f'inference_logs/iw_data9/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_Inference_ImageSet_predicted bboxes_SIM_world_cf_POST_PROCESSED.csv'
-    
+        for anno_sim in annos_for_all_frames_sim_world:    
+            frame_id = anno_sim[0]['frame_id']
+            print("Current frame_id: ", frame_id)
+            try:
+                for bbox in anno_sim[0]['bboxes']:
+                    bbox_2d = bbox['bbox']
+                    dims = bbox['dimensions']
+                    loc = bbox['location']
+                    print("DEBUG - RAW Location: ", loc)
+
+                    # Set z to zero to comply with pre-processed scene 
+                    loc[2] = 0.0  
+
+                    f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %s, %s\n' % (
+                            bbox['type'],
+                            bbox['truncated'],
+                            bbox['occluded'],
+                            bbox['alpha'],
+                            bbox_2d[0], bbox_2d[1], bbox_2d[2], bbox_2d[3],
+                            dims[1], dims[2], dims[0],  # lhw -> hwl
+                            loc[0], loc[1], loc[2],
+                            bbox['rotation_z'], 
+                            bbox['score'], 
+                            frame_id,
+                            bbox['asset_path_omnv']
+                    ))
+            except Exception as e:
+                print(f"WARNING: Failed writing frame {frame_id}. Error: {e}")
+                continue
+
+        logger.info(f"Predicted Bounding Boxes in World coords written to {csv_output_path_BB_SIM_world}")
+
+    print("------------ Starting POST PROCESSING of predicted BB for section overlaps -------------")        
+    csv_output_path_BB_SIM_world_POST_PROCESSED = f'./detections/inference_post-processed_detections.csv'
+
     sim_bboxes_post_processed = section_overlaps_post_processing(csv_output_path_BB_SIM_world, iou_threshold=0.1) #section overlaps post processing with iou threshold of 0.1
     
     with open(csv_output_path_BB_SIM_world_POST_PROCESSED, 'w') as f:      
-
-        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z_sim, score, frame_id, bbox_pp_idx, asset_path\n') #toggle based on usage 
+        f.write('name, truncated, occluded, alpha, u1, v1, u2, v2, h, w, l, x_sim_world, y_sim_world, z_sim_world, rotation_z, score, frame_id, bbox_pp_idx, asset_path\n') #toggle based on usage 
         
         for sim_bbox_ppcd in sim_bboxes_post_processed:       
+            # Set z to 0 to comply with pre-processed scene
+            sim_bbox_ppcd['z_sim_world'] = 0.0
+
             # for bbox_idx in range(len(sim_bboxes_post_processed[0]['name'])):
             f.write('%s, %.1f, %.1f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %06d, %s, %s\n' % (
                     sim_bbox_ppcd['name'],
@@ -263,14 +298,12 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                     sim_bbox_ppcd['u2'], sim_bbox_ppcd['v2'],
                     sim_bbox_ppcd['h'], sim_bbox_ppcd['w'], sim_bbox_ppcd['l'],
                     sim_bbox_ppcd['x_sim_world'], sim_bbox_ppcd['y_sim_world'], sim_bbox_ppcd['z_sim_world'],
-                    sim_bbox_ppcd['rotation_z_sim'], 
+                    sim_bbox_ppcd['rotation_z'], 
                     sim_bbox_ppcd['score'], 
                     sim_bbox_ppcd['frame_id'],
                     sim_bbox_ppcd['bbox_idx'],
                     sim_bbox_ppcd['asset_path']
             ))
-        
-        # print("Amount of post-processed bboxes: ", len(sim_bboxes_post_processed))
         
         logger.info(f"POST PROCESSED Predicted Bounding Boxes in SIM World CF written to {csv_output_path_BB_SIM_world_POST_PROCESSED}") 
   
@@ -290,12 +323,12 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
                     if anno[0]['frame_id'] == selected_frame:
                         logger.info(f"\n ----Dimensions per BBoxes: \n {anno[0]['dimensions']}")
                         logger.info(f"\n ----Locations per BBoxes: \n {anno[0]['location']}")
-                        logger.info(f"\n ----Rotation_y per BBoxes: \n {anno[0]['rotation_y']}")
+                        logger.info(f"\n ----rotation_z per BBoxes: \n {anno[0]['rotation_z']}")
 
             # Extract the pred_boxes for the selected frame
             pred_boxes_for_selected_frame = get_pred_boxes_for_frame(det_annos_velo_for_all_frames, selected_frame)
 
-        visualize_gt = False #True 
+        visualize_gt = True 
         gt_labels = None
         if visualize_gt:
             # execute only if gt_labels are available, otherwise skip
