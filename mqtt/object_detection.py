@@ -11,7 +11,7 @@ import sys
 import paho.mqtt.client as mqtt
 from tools.pipeline_inference_object_detection import main
 
-STAGE = "3D_object_detection"
+STAGE = "object_detection"
 
 # GLOBAL MQTT client (für publish im Thread)
 client = mqtt.Client()
@@ -36,7 +36,7 @@ def handle_object_detection(payload):
         print("[INFO] Step 2: Creating dataset infos")
         subprocess.run([
             "python3", "-m", "pcdet.datasets.kitti.kitti_dataset_mm",
-            "create_kitti_infos", "tools/cfgs/dataset_configs/IW-dataset-9.yaml"
+            "create_adtc_infos", "tools/cfgs/dataset_configs/IW-dataset-9.yaml"
         ], check=True)
 
         # Step 3: Run inference with VirConv model

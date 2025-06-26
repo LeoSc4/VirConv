@@ -485,13 +485,13 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     print('---------------Start to generate data infos---------------')
 
     dataset.set_split(train_split)
-    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)       #changed to has_label=false as SDG data is used for inference (no training)
     with open(train_filename, 'wb') as f:
         pickle.dump(kitti_infos_train, f)
     print('Kitti info train file is saved to %s' % train_filename)
 
     dataset.set_split(val_split)
-    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)         #changed to has_label=false as SDG data is used for inference (no training)
     with open(val_filename, 'wb') as f:
         pickle.dump(kitti_infos_val, f)
     print('Kitti info val file is saved to %s' % val_filename)
@@ -507,23 +507,74 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     print('Kitti info test file is saved to %s' % test_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
-    dataset.set_split('train')
-    dataset.create_groundtruth_database(train_filename, split='train')
+    
+    #+# TODO: TEMPORARY DISABLED FOR INFERENCE 
+    # dataset.set_split('train')
+    # dataset.create_groundtruth_database(train_filename, split='train')
+    print("INFO: Groundtruth database creation is disabled for inference mode.")
 
     print('---------------Data preparation Done---------------')
 
 
+def create_adtc_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
+    dataset = KittiDatasetMM(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
+    train_split, val_split, _ = 'train', 'val', 'trainval'
+
+    train_filename = save_path / ('kitti_infos_%s.pkl' % train_split)
+    val_filename = save_path / ('kitti_infos_%s.pkl' % val_split)
+    trainval_filename = save_path / 'kitti_infos_trainval.pkl'
+    test_filename = save_path / 'kitti_infos_test.pkl'
+
+    print('---------------Start to generate data infos---------------')
+
+    dataset.set_split(train_split)
+    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)       #changed to has_label=false as SDG data is used for inference (no training)
+    with open(train_filename, 'wb') as f:
+        pickle.dump(kitti_infos_train, f)
+    print('ADTC Kitti info train file is saved to %s' % train_filename)
+
+    dataset.set_split(val_split)
+    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)         #changed to has_label=false as SDG data is used for inference (no training)
+    with open(val_filename, 'wb') as f:
+        pickle.dump(kitti_infos_val, f)
+    print('ADTC Kitti info val file is saved to %s' % val_filename)
+
+    with open(trainval_filename, 'wb') as f:
+        pickle.dump(kitti_infos_train + kitti_infos_val, f)
+    print('ADTC Kitti info trainval file is saved to %s' % trainval_filename)
+    
+    dataset.set_split('test')
+    kitti_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
+    with open(test_filename, 'wb') as f:
+        pickle.dump(kitti_infos_test, f)
+    print('ADTC Kitti info test file is saved to %s' % test_filename)
+
+    print('---------------Data preparation Done---------------')
+
 if __name__ == '__main__':
     import sys
-    if sys.argv.__len__() > 1 and sys.argv[1] == 'create_kitti_infos':
-        import yaml
-        from pathlib import Path
-        from easydict import EasyDict
+    import yaml
+    from pathlib import Path
+    from easydict import EasyDict
+
+    if sys.argv.__len__() >= 3:
+        mode = sys.argv[1]
+        config_path = sys.argv[2]
+
         dataset_cfg = EasyDict(yaml.safe_load(open(sys.argv[2])))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
-        create_kitti_infos(
-            dataset_cfg=dataset_cfg,
-            class_names=['Car', 'Pedestrian', 'Cyclist'],
-            data_path=ROOT_DIR / 'data' / 'kitti',
-            save_path=ROOT_DIR / 'data' / 'kitti'
-        )
+
+        if mode == 'create_kitti_infos':
+            create_kitti_infos(
+                dataset_cfg=dataset_cfg,
+                class_names=['Car', 'Pedestrian', 'Cyclist'],
+                data_path=ROOT_DIR / 'data' / 'kitti',
+                save_path=ROOT_DIR / 'data' / 'kitti'
+            )
+        elif mode == 'create_adtc_infos':
+            create_adtc_infos(
+                dataset_cfg=dataset_cfg,
+                class_names=['Car', 'Pedestrian', 'Cyclist'],
+                data_path=ROOT_DIR / 'data' / 'kitti',
+                save_path=ROOT_DIR / 'data' / 'kitti'
+            )
