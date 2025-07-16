@@ -7,7 +7,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 is_image_build() {
-    if [ "$(docker images -q virconv-pytorch1131-cuda117 2> /dev/null)" == "" ]; then
+    if [ "$(docker images -q adtc-object_detection 2> /dev/null)" == "" ]; then
         echo -e "${RED}Image not found. Have you built the image?${NC}"
         echo -e "${BLUE}Try running: ./build_docker.sh${NC}"
         return 1
@@ -26,7 +26,7 @@ run_docker() {
         xhost +local:root
         docker run \
             --runtime nvidia \
-            --name virconv-pytorch1131-cuda117 \
+            --name adtc-object_detection \
             -it \
             --net host \
             --gpus all \
@@ -35,8 +35,8 @@ run_docker() {
             --env="DISPLAY" \
             --env="QT_X11_NO_MITSHM=1" \
             -v /tmp/.X11-unix:/tmp/.X11-unix:rw\
-            -v "/home/leo/workspace/Docker_tests/Torch1131CUDA117/VirConv:/workspace" \
-            virconv-pytorch1131-cuda117-wandb
+            -v "/home/simulation/workspace/VirConv:/workspace" \
+            adtc-object_detection
             
     fi
 }

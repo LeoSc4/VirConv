@@ -66,8 +66,7 @@ def format_annos_for_vis(annos): #transform annos in velo cf for visulization
             # change from l, w, h to h, l, w
             # size = [size[1], size[0], size[2]]  # width, length, height ->  see boxes3d_lidar_to_kitti_camera in kitti_dataset_mm.py
 
-            size = [size[2], size[0], size[1]]  # Test 27.03.25: with good results on iw.visualization 
-                                                # Test with KITTI data necessary !
+            size = [size[2], size[0], size[1]]  
 
             formatted_boxes_per_frame.append({
                 'type': anno['name'][bbox_idx],
@@ -201,7 +200,7 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     # Get the predicted BBoxes in camera coordinate frame
     # create copy to not overwrite the original annos
     annos_for_all_frames_kitti_cam = deepcopy(annos_for_all_frames) 
-    cam_graph_extrinsics_path = f"../data/kitti/poses_dataset_9.json"       #defined in omniverse isaac sim default camera convention
+    cam_graph_extrinsics_path = f"../SGTD_camera_poses/optimized_cameras.json"                 #f"../data/kitti/poses_dataset_9.json"       #defined in omniverse isaac sim default camera convention
 
     # Get the camera extrinsics for all frames 
     Tr_cam_transform_matrices = get_camera_pose_omnv_world(omnv_def_cam_pose_omnv_world_path=cam_graph_extrinsics_path)
@@ -296,6 +295,9 @@ def main(log_file, model_ckpt, point_cloud_range=None, bbox_analysis_path=None):
     
     
     print("------------ Starting Visualization -------------")
+
+    print("DEBUG - Number of frames in inference dataset: ", len(inference_dataset))
+    
     for i in range(len(inference_dataset)):
         selected_frame = inference_dataset[i]['frame_id']
         print("INFO - Visualizing the scene for frame %s" % selected_frame)        

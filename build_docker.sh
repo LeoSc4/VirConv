@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --no-cache -t virconv-pytorch1131-cuda117 .
+docker build --build-arg CACHE_BUST=$(date +%s) -t adtc-object_detection .

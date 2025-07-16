@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: tools/cfgs/dataset_configs/IW-dataset-9.yaml    ## OTHER path necessary for automation pipeline    ## Original: cfgs/dataset_configs/IW-dataset-9.yaml
+    _BASE_CONFIG_: tools/cfgs/dataset_configs/IW-dataset-9.yaml  ## OTHER path necessary for automation pipeline: tools/cfgs/dataset_configs/IW-dataset-9.yaml    ## Original: cfgs/dataset_configs/IW-dataset-9.yaml
     DATASET: 'KittiDatasetMM'
     INPUT_DISCARD_RATE: 0.8   # actually discard more than 90% virtual points of RGB image,
                               # as we only saved less than 50% RGB points during depth2points conversion.
@@ -16,7 +16,7 @@ DATA_CONFIG:
 
     INFO_PATH: {
         'train': [kitti_infos_train.pkl],
-        'test': [kitti_infos_val.pkl],
+        'test': [kitti_infos_val.pkl],            # specify to kitti_infos_test.pkl as it is inference
     }
 
     DATA_AUGMENTOR:                                                        

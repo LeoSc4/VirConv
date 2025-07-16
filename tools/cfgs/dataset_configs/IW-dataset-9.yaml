@@ -1,4 +1,4 @@
-DATA_PATH: data/kitti #'../data/kitti'
+DATA_PATH: data/kitti #'/data/kitti'
 
 DATASET: 'KittiDataset'
 

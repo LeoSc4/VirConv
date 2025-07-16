@@ -55,3 +55,6 @@ map_coverage_calculator/camera_poses.json
 map_coverage_calculator/occupancy_grid_ADTC_stage.png
 map_coverage_calculator/occupancy_grid.png
 graph_definition/graph_output/
+detections/
+inference_logs/
+converter_to_pcd/

@@ -30,23 +30,23 @@ RUN apt-get update && apt-get install -y \
     libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 && \
     rm -rf /var/lib/apt/lists/*
 
+ARG CACHE_BUST=1
+
 # Install PyQt5 (binary only to avoid source build issues)
 RUN pip install --no-cache-dir PyQt5==5.15.7 --only-binary PyQt5
 
-ARG CACHE_BUST=1
 
 # Setup a non-root user
-ARG UID=1000
-ARG GID=1000
+# ARG UID=1000
+# ARG GID=1000
 
-RUN groupadd --g ${GID} usergroup && \
-    useradd -m -u ${UID} -g usergroup -s /bin/bash user
-
-USER user
+# RUN groupadd --g ${GID} usergroup && \
+    # useradd -m -u ${UID} -g usergroup -s /bin/bash user
+# 
+# USER user
 
 # Install PyTorch 1.13.1 mit CUDA 11.7
 RUN pip3 install --no-cache-dir torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
-
 
 # Install dependencies
 COPY requirements.txt /workspace/
