@@ -309,13 +309,13 @@ if __name__ == '__main__':
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / ('%s_log_evaluation.txt' % datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
-    ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworks-ml/VirConv/runs/5gobr6s1?nw=nwuseredgeai
+    ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworkshadi/VirConv/runs/5gobr6s1?nw=nwuseredgeai
     # IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv
     # Epoch 30 = 0.63977
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv/ckpt/checkpoint_epoch_30.pth'
 
     ###### Dataset 9 - WITHOUT Augmentor ###########
-    ### BEST RESULT ###     SWP_DS9_No-AUG_krx6i4fc: https://wandb.ai/idealworks-ml/VirConv/runs/r35t9lty/overview
+    ### BEST RESULT ###     SWP_DS9_No-AUG_krx6i4fc: https://wandb.ai/idealworkshadi/VirConv/runs/r35t9lty/overview
     # Epoch 51 = 1.945
     model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_krx6i4fc/ckpt/checkpoint_epoch_51.pth'
 

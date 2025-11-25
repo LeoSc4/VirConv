@@ -108,10 +108,13 @@ class KittiDatasetSemi(DatasetTemplate):
         return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
     def get_lidar_mm(self, idx):
+        print(idx)
         if isinstance(idx,list):
             lidar_file = self.root_split_path /idx[0] / self.dataset_cfg.MM_PATH / ('%s.npy' % idx[1])
+            print(lidar_file)
         else:
             lidar_file = self.root_split_path / self.dataset_cfg.MM_PATH / ('%s.npy' % idx)
+            print("lidar_file",lidar_file)
         assert lidar_file.exists()
         pts = np.load(lidar_file).astype(np.float32)
         return pts

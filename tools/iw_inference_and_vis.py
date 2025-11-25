@@ -356,41 +356,41 @@ if __name__ == '__main__':
     # PAPER VirConv with KITTI Data
     # model_ckpt = '../output/pretrained_models/VirConv-T-Paper.pth'   
     
-    ########## Dataset 7:   Sweep cLR_AnchorLWH_25Samples - https://wandb.ai/idealworks-ml/VirConv/sweeps/g9ma6tl5/workspace?nw=nwuseredgeai ################
-    ## Best result at epoch 200           https://wandb.ai/idealworks-ml/VirConv/runs/nvpgcbej/overview
+    ########## Dataset 7:   Sweep cLR_AnchorLWH_25Samples - https://wandb.ai/idealworkshadi/VirConv/sweeps/g9ma6tl5/workspace?nw=nwuseredgeai ################
+    ## Best result at epoch 200           https://wandb.ai/idealworkshadi/VirConv/runs/nvpgcbej/overview
     # Check 200 (1.002 loss) 
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-7/Sweep-cLR_AnchorLWH_25Samples/IW_DS7_000000_ckpt_200EP_AnchorLWH_BS4_25SSweep_cLR_AchLWH_S25_0jyyn3gt/ckpt/checkpoint_epoch_200.pth'
 
     
     ########## Dataset 8 ###########
-    # SWP_DS8_j3pxxp19: https://wandb.ai/idealworks-ml/VirConv/runs/37w6p6i9?nw=nwuseredgeai
+    # SWP_DS8_j3pxxp19: https://wandb.ai/idealworkshadi/VirConv/runs/37w6p6i9?nw=nwuseredgeai
     # VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_j3pxxp19_j3pxxp19/
     # Epoch 29 => loss = 0.68337
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_j3pxxp19_j3pxxp19/ckpt/checkpoint_epoch_29.pth'
     
 
-    # SWP_DS8_95uwrkey: https://wandb.ai/idealworks-ml/VirConv/runs/0b1qzydm?nw=nwuseredgeai
+    # SWP_DS8_95uwrkey: https://wandb.ai/idealworkshadi/VirConv/runs/0b1qzydm?nw=nwuseredgeai
     # IW_DS8_50EP_SWP_DS8_95uwrkey_95uwrkey
     # Epoch 26 =>0.6956
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_95uwrkey_95uwrkey/ckpt/checkpoint_epoch_26.pth'
 
 
-    ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworks-ml/VirConv/runs/5gobr6s1?nw=nwuseredgeai
+    ### BEST RESULT ###     SWP_DS8_2492j5kv: https://wandb.ai/idealworkshadi/VirConv/runs/5gobr6s1?nw=nwuseredgeai
     # IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv
     # Epoch 30 = 0.63977
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-8/IW_DS8_50EP_SWP_DS8_2492j5kv_2492j5kv/ckpt/checkpoint_epoch_30.pth'
 
 
     ########## Dataset 9 - WITHOUT Augmentor ###########
-    ### BEST RESULT ###     SWP_DS9_No-AUG_krx6i4fc: https://wandb.ai/idealworks-ml/VirConv/runs/r35t9lty/overview
+    ### BEST RESULT ###     SWP_DS9_No-AUG_krx6i4fc: https://wandb.ai/idealworkshadi/VirConv/runs/r35t9lty/overview
     # Epoch 51 = 1.945
     model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_krx6i4fc/ckpt/checkpoint_epoch_51.pth'
 
-    # SWP_DS9_No-AUG_ki1jwmeg: https://wandb.ai/idealworks-ml/VirConv/runs/if3uofa5/overview
+    # SWP_DS9_No-AUG_ki1jwmeg: https://wandb.ai/idealworkshadi/VirConv/runs/if3uofa5/overview
     # Epoch 56 = 2.017
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_ki1jwmeg/ckpt/checkpoint_epoch_56.pth'
 
-    # SWP_DS9_No-AUG_pwsfyw7v: https://wandb.ai/idealworks-ml/VirConv/runs/dzt8y7bg/overview
+    # SWP_DS9_No-AUG_pwsfyw7v: https://wandb.ai/idealworkshadi/VirConv/runs/dzt8y7bg/overview
     # Epoch 43 = 2.86
     # model_ckpt = '../output/models/kitti/VirConv-T-IW-DS-9/IW_DS9_60EP_AUG_SWP_DS9_AUG_pwsfyw7v/ckpt/checkpoint_epoch_43.pth'
 

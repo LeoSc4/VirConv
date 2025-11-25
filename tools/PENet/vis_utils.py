@@ -15,7 +15,7 @@ from dataloaders.my_loader import depth2pointsrgb, depth2pointsrgbp
 
 from datetime import datetime
 
-from tools.visual_utils.vis_utils_ls import save_point_cloud_as_pcd
+# from tools.visual_utils.vis_utils_ls import save_point_cloud_as_pcd
 
 def validcrop(img):
     ratio = 256/1216

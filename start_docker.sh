@@ -35,7 +35,7 @@ run_docker() {
             --env="DISPLAY" \
             --env="QT_X11_NO_MITSHM=1" \
             -v /tmp/.X11-unix:/tmp/.X11-unix:rw\
-            -v "/home/simulation/workspace/VirConv:/workspace" \
+            -v "/home/hadi/Desktop/omniverse/digital-reconstruction/workspace/VirConv:/workspace" \
             adtc-object_detection
             
     fi
